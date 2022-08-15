@@ -1,11 +1,12 @@
-package forefs
+package main
 
 import (
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
+
+	"gopkg.in/yaml.v3"
 )
 
-//func ReadYaml(s stores.Storer, name string, out interface{}) error {
+//func ReadYaml(s exchanges.Exchanger, name string, out interface{}) error {
 //	data, err := Read(s, name)
 //	if err != nil {
 //		return err
@@ -13,7 +14,7 @@ import (
 //	return yaml.Unmarshal(data, out)
 //}
 //
-//func WriteYaml(s stores.Storer, name string, in interface{}) error {
+//func WriteYaml(s exchanges.Exchanger, name string, in interface{}) error {
 //	d, err := yaml.Marshal(in)
 //	if err != nil {
 //		return err
