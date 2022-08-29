@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"weshare/core"
+	"weshare/model"
+	"weshare/security"
 	"weshare/sql"
 
 	"github.com/fsnotify/fsnotify"
@@ -33,15 +35,15 @@ func getDomainPath(domain string) (string, error) {
 	return ph, nil
 }
 
-func getFilesFromFS(domain, domainPath string) ([]core.File, error) {
+func getFilesFromFS(domain, domainPath string) ([]model.File, error) {
 	_ = os.MkdirAll(domainPath, 0755)
-	var files []core.File
+	var files []model.File
 	altFolder := ".alt" + string(filepath.Separator)
 	filepath.Walk(domainPath, func(path string, info fs.FileInfo, err error) error {
 		if !info.IsDir() {
 			path = path[len(domainPath)+1:]
 			if !strings.HasPrefix(path, altFolder) {
-				files = append(files, core.File{
+				files = append(files, model.File{
 					Domain:  domain,
 					Name:    path,
 					ModTime: info.ModTime(),
@@ -54,12 +56,12 @@ func getFilesFromFS(domain, domainPath string) ([]core.File, error) {
 	return files, nil
 }
 
-func hasRenamed(hash []byte) (file2 core.File, ok bool) {
+func hasRenamed(hash []byte) (file2 model.File, ok bool) {
 	files, err := sql.GetFilesByHash(hash)
 	if err != nil && len(files) == 1 {
 		return files[0], true
 	} else {
-		return core.File{}, false
+		return model.File{}, false
 	}
 }
 
@@ -80,30 +82,30 @@ func fileHasChanged(ev fsnotify.Event) {
 		case fsnotify.Create:
 			stat, err := os.Stat(ev.Name)
 			if !core.IsErr(err, "cannot get info about created file %s: %v", ev.Name) {
-				h, err := core.HashFromFile(ev.Name)
+				h, err := security.HashFromFile(ev.Name)
 				if err != nil {
-					f := core.File{
+					f := model.File{
 						Domain:  domain,
 						Name:    name,
-						Author:  Identity.Public,
+						Author:  Self.Keys[security.Ed25519].Public,
 						ModTime: stat.ModTime(),
 						Hash:    h[:],
-						State:   core.LocalCreated,
+						State:   model.LocalCreated,
 					}
 					core.IsErr(sql.SetFile(f), "cannot set in db '%v': %v", f)
 				}
 			}
 		case fsnotify.Write:
-			f, err := sql.GetFile(domain, name, Identity.Public)
+			f, err := sql.GetFile(domain, name, Self.Keys[security.Ed25519].Public)
 			if err != nil {
-				f.State |= core.LocalChanged
+				f.State |= model.LocalModified
 				core.IsErr(sql.SetFile(f), "cannot set in db '%v': %v", f)
 			}
 
 		case fsnotify.Remove:
-			f, err := sql.GetFile(domain, name, Identity.Public)
+			f, err := sql.GetFile(domain, name, Self.Keys[security.Ed25519].Public)
 			if err != nil {
-				f.State |= core.LocalDeleted
+				f.State |= model.LocalDeleted
 				core.IsErr(sql.SetFile(f), "cannot set in db '%v': %v", f)
 			}
 		}
@@ -145,24 +147,24 @@ func syncLocalToDB(domain string) error {
 		if fileOnlyOnFs {
 			f := files1[i]
 			i++
-			h, err := core.HashFromFile(filepath.Join(domainPath, f.Name))
+			h, err := security.HashFromFile(filepath.Join(domainPath, f.Name))
 			if err != nil {
 				continue
 			}
 			if f2, ok := hasRenamed(h[:]); ok {
 				f2.Name = f.Name
 				f2.ModTime = f.ModTime
-				f2.State |= core.LocalRenamed
+				f2.State |= model.LocalRenamed
 				core.IsErr(sql.SetFile(f2), "cannot set in db '%v': %v", f2)
 			} else {
-				f.State = core.LocalCreated
-				f.Author = Identity.Public
+				f.State = model.LocalCreated
+				f.Author = security.Primary(Self).Public
 				core.IsErr(sql.SetFile(f), "cannot set in db '%v': %v", f)
 			}
 		} else if fileOnlyOnDb {
 			f := files2[j]
 			j++
-			f.State |= core.LocalDeleted
+			f.State |= model.LocalDeleted
 			core.IsErr(sql.SetFile(f), "cannot set in db '%v': %v", f)
 		} else {
 			f1, f2 := files1[i], files2[j]
@@ -170,7 +172,7 @@ func syncLocalToDB(domain string) error {
 			j++
 
 			if f1.ModTime.After(f2.ModTime) {
-				f2.State |= core.LocalChanged
+				f2.State |= model.LocalModified
 				core.IsErr(sql.SetFile(f2), "cannot set in db '%v': %v", f2)
 			}
 		}

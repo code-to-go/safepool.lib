@@ -2,16 +2,25 @@ syntax = "proto3";
 package protocol;
 option go_package = "./protocol";
 
+message User {
+    bytes identity = 1;
+    bool active = 2;
+    bytes encKey = 3;
+}
+
+message LegacyKeys {
+    map<string,bytes> keys = 1;
+}
+
 message DomainFile {
     uint32 version = 1;
     uint32 snowflakeId = 2;
     string name = 3;
-
+    uint32 encId = 4;
+    repeated User users = 5;
+    bytes encryptedLegacyKeys = 6;
 }
 
-message UserRecord {
-    bytes public = 1;
-    string name = 2;
-    string name2 = 3;
-    bytes key = 4;
+message AdminsFile {
+    repeated bytes identities = 1;
 }

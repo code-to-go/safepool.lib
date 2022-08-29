@@ -4,13 +4,16 @@ import (
 	_ "embed"
 	"testing"
 	"time"
-	"weshare/core"
+	"weshare/model"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDb(t *testing.T) {
+	DbName = "weshare.test.db"
+	DeleteDB()
+
 	LoadSQLFromFile("sqlite.sql")
 	err := OpenDB()
 	assert.NoErrorf(t, err, "cannot open sqllite: %v", err)
@@ -23,7 +26,7 @@ func TestDb(t *testing.T) {
 	}
 	assert.Equal(t, "test", s, "cannot get config: %v", err)
 
-	err = SetDomain("public.weshare.zone", nil)
+	err = SetAccess(model.Access{})
 	assert.NoErrorf(t, err, "cannot add domain: %v", err)
 
 	domains, err := GetDomains()
@@ -31,19 +34,27 @@ func TestDb(t *testing.T) {
 	assert.Contains(t, domains, "public.weshare.zone", "cannot find expected domain")
 
 	now := time.Unix(time.Now().Unix(), 0)
-	err = SetFile(core.File{
+	err = SetFile(model.File{
 		Domain:  "public.weshare.zone",
 		Name:    "test.txt",
 		Author:  []byte("author"),
 		Hash:    []byte("hash"),
 		ModTime: now,
-		State:   core.LocalCreated,
+		State:   model.LocalCreated,
 	})
 	assert.NoErrorf(t, err, "cannot set file: %v", err)
 
 	f, err := GetFile("public.weshare.zone", "test.txt", []byte("author"))
 	assert.NoErrorf(t, err, "cannot get file: %v", err)
 	assert.Equal(t, now, f.ModTime)
+
+	err = SetEncKey("public.weshare.zone", 1, []byte("some key"))
+	assert.NoErrorf(t, err, "cannot set key: %v", err)
+
+	keys, err := GetEncKeys("public.weshare.zone")
+	assert.NoErrorf(t, err, "cannot get keys: %v", err)
+	assert.Len(t, keys, 1, "keys is not 1 size")
+	assert.Equal(t, []byte("some key"), keys[1], "unexpected key value")
 
 	err = CloseDB()
 	assert.NoErrorf(t, err, "cannot close sqllite: %v", err)

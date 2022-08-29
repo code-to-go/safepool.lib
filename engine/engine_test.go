@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"weshare/core"
 	"weshare/exchanges"
+	"weshare/model"
 	"weshare/sql"
 
 	"github.com/stretchr/testify/assert"
@@ -40,7 +40,7 @@ func TestLocalSync(t *testing.T) {
 	files, err = Status("test.weshare.zone")
 	assert.NoErrorf(t, err, "cannot get status: %v", err)
 
-	if files[0].State&core.Staged == 0 {
+	if files[0].State&model.Staged == 0 {
 		t.Errorf("Expected staged")
 		t.Fail()
 	}
@@ -50,7 +50,7 @@ func TestLocalSync(t *testing.T) {
 
 }
 
-func TestRemoteSunc(t *testing.T) {
+func TestRemoteSync(t *testing.T) {
 	sql.DbName = "weshare.test.db"
 	sql.DeleteDB()
 	sql.LoadSQLFromFile("../sql/sqlite.sql")
@@ -60,6 +60,9 @@ func TestRemoteSunc(t *testing.T) {
 	data, _ := ioutil.ReadFile("../../credentials/s3-2.yaml")
 	yaml.Unmarshal(data, &config)
 
-	SetDomain("test.weshare.zone", []exchanges.Config{config})
+	Join(model.Access{
+		Domain:    "test.weshare.zone",
+		Exchanges: []exchanges.Config{config},
+	})
 
 }

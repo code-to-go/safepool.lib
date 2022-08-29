@@ -1,0 +1,116 @@
+package security
+
+import (
+	"crypto/ed25519"
+	"encoding/binary"
+	"io"
+	"weshare/core"
+	"weshare/protocol"
+
+	"github.com/golang/protobuf/proto"
+)
+
+type PublicKey ed25519.PublicKey
+type PrivateKey ed25519.PrivateKey
+
+const (
+	PublicKeySize  = ed25519.PublicKeySize
+	PrivateKeySize = ed25519.PrivateKeySize
+	SignatureSize  = ed25519.SignatureSize
+)
+
+type SignedData struct {
+	Signature [SignatureSize]byte
+	Signer    PublicKey
+}
+
+type Public struct {
+	Id    PublicKey
+	Nick  string
+	Email string
+}
+
+func Primary(identity Identity) Key {
+	return identity.Keys[Ed25519]
+}
+
+func Sign(identity Identity, data []byte) ([]byte, error) {
+	private := identity.Keys[Ed25519].Private
+	return ed25519.Sign(ed25519.PrivateKey(private), data), nil
+}
+
+func Verify(identity Identity, data []byte, sig []byte) bool {
+	public := identity.Keys[Ed25519].Public
+	return ed25519.Verify(ed25519.PublicKey(public), data, sig)
+}
+
+func SignAndWrite(identity Identity, data []byte, w io.Writer, signatures [][]byte) error {
+	sign, err := Sign(identity, data)
+	if core.IsErr(err, "cannot sign data: %v") {
+		return err
+	}
+	signedData := protocol.SignedData{
+		Version: 1,
+		Data:    data,
+	}
+
+	for _, s := range signatures {
+		signedData.Signatures = append(signedData.Signatures, s)
+	}
+	signedData.Signatures = append(signedData.Signatures, sign)
+
+	signedDataB, err := proto.Marshal(&signedData)
+	if core.IsErr(err, "cannot marshal signed data: %v") {
+		return err
+	}
+
+	lenB := make([]byte, 4)
+	binary.BigEndian.PutUint32(lenB, uint32(len(signedDataB)))
+	w.Write(lenB)
+	_, err = w.Write(signedDataB)
+	if core.IsErr(err, "cannot write signed data to stream: %v") {
+		return err
+	}
+	return nil
+}
+
+func ReadAndVerify(admins []Identity, r io.Reader) (data []byte, signatures [][]byte, err error) {
+	lenB := make([]byte, 4)
+	_, err = r.Read(lenB)
+	if core.IsErr(err, "cannot read length of data") {
+		return nil, nil, err
+	}
+
+	data = make([]byte, binary.BigEndian.Uint32(lenB))
+	_, err = r.Read(data)
+	if core.IsErr(err, "cannot read signed data") {
+		return nil, nil, err
+	}
+
+	var signedData protocol.SignedData
+	err = proto.Unmarshal(data, &signedData)
+	if core.IsErr(err, "cannot unmarshall signed data: %v") {
+		return nil, nil, err
+	}
+
+	if signedData.Version >= 2.0 {
+		return nil, nil, core.ErrInvalidVersion
+	}
+
+	verified := false
+out:
+	for _, s := range signedData.Signatures {
+		for _, p := range admins {
+			if Verify(p, signedData.Data, s) {
+				verified = true
+				break out
+			}
+		}
+	}
+
+	if verified {
+		return signedData.Data, signedData.Signatures, nil
+	} else {
+		return nil, nil, core.ErrInvalidSignature
+	}
+}

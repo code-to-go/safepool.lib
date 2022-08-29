@@ -4,30 +4,32 @@ option go_package = "./protocol";
 
 import "google/protobuf/timestamp.proto";
 
-enum ChangeType {
-    NONE = 0x0;
-    CREATED = 0x1;
-	CHANGED = 0x2;
-	DELETED = 0x4;
-	RENAMED = 0x8;
+
+message Edit {
+    uint32 sliceStart = 1;
+    uint32 sliceEnd = 2;
+    uint32 withStart = 3;
+    uint32 withEnd = 4;
 }
 
-message Change {
-    ChangeType type = 1;
-    uint32 originStart = 2;
-    uint32 originEnd = 3;
-    uint32 newStart = 4;
-    uint32 newEnd = 5;
+enum Flags {
+    Empty = 0;
+    FullFile = 1;
 }
 
-message ChangeFile {
-    uint32 version = 1;
-    uint32 iteration = 2;
-    string name = 3;
-    google.protobuf.Timestamp time = 4;
-    bytes author = 5;
-    bytes origin = 6;
-    uint64 size = 7;
-    repeated Change changes = 8;
+message ChangeFileHeader {
+    float version = 1;
+    uint32 flag = 2;
+    string domain = 3;
+    string name = 4;
+    repeated uint64 chainIds = 5;
+    google.protobuf.Timestamp time = 8;
+    bytes author = 9;
+    bytes hash = 10;
+    uint64 size = 11;
+}
+
+message Edits {
+    repeated Edit edits = 11;
 }
 

@@ -1,0 +1,147 @@
+package security
+
+import (
+	"bytes"
+	"weshare/core"
+	"weshare/protocol"
+
+	"github.com/golang/protobuf/proto"
+	"github.com/google/tink/go/hybrid"
+	"github.com/google/tink/go/insecurecleartextkeyset"
+	"github.com/google/tink/go/keyset"
+	"github.com/google/tink/go/signature"
+)
+
+type Identity struct {
+	PublicCrypt  *keyset.Handle
+	PublicHash   *keyset.Handle
+	PrivateCrypt *keyset.Handle
+	PrivateHash  *keyset.Handle
+	Nick         string
+}
+
+func marshalKeyset(kh *keyset.Handle) ([]byte, error) {
+	exportedPriv := &keyset.MemReaderWriter{}
+	err := insecurecleartextkeyset.Write(kh, exportedPriv)
+	if core.IsErr(err, "cannot export encryption key: %v") {
+		return nil, err
+	}
+	data, err := proto.Marshal(exportedPriv.Keyset)
+	if core.IsErr(err, "cannot marshal keyset: %v") {
+		return nil, err
+	}
+	return data, nil
+}
+
+func NewIdentity(nick string) (Identity, error) {
+	var identity Identity
+
+	identity.Nick = nick
+	kh, err := keyset.NewHandle(signature.ECDSAP256KeyTemplate()) // Other key templates can also be used.
+	if core.IsErr(err, "cannot generated signature ECDSAP256 key: %v") {
+		return identity, err
+	}
+
+	identity.PrivateHash = kh
+	kh, err = kh.Public()
+	if core.IsErr(err, "cannot derive public key from signature ECDSAP256 key: %v") {
+		return identity, err
+	}
+	identity.PublicHash = kh
+
+	kh, err = keyset.NewHandle(hybrid.ECIESHKDFAES128CTRHMACSHA256KeyTemplate())
+	if core.IsErr(err, "cannot generated hybrid ECIESHKDFAES128CTRHMACSHA256 key: %v") {
+		return identity, err
+	}
+	identity.PrivateCrypt = kh
+
+	if core.IsErr(err, "cannot derive public key from ECIESHKDFAES128CTRHMACSHA256 key: %v") {
+		return identity, err
+	}
+	identity.PublicCrypt = kh
+
+	return identity, nil
+}
+
+func MarshalIdentity(identity Identity, private bool) ([]byte, error) {
+	var hk *keyset.Handle
+
+	if private {
+		hk = identity.PrivateCrypt
+	} else {
+		hk = identity.PublicCrypt
+	}
+
+	crypt, err := marshalKeyset(hk)
+	if core.IsErr(err, "cannot export private encryption key: %v") {
+		return nil, err
+	}
+
+	if private {
+		hk = identity.PrivateHash
+	} else {
+		hk = identity.PublicHash
+	}
+	hash, err := marshalKeyset(identity.PrivateCrypt)
+	if core.IsErr(err, "cannot export private encryption key: %v") {
+		return nil, err
+	}
+
+	i := protocol.Identity{
+		Version: 1.0,
+		Private: private,
+		Crypt:   crypt,
+		Hash:    hash,
+		Nick:    identity.Nick,
+	}
+
+	data, err := proto.Marshal(&i)
+	if core.IsErr(err, "cannot marshal protocol.Identity: %v") {
+		return nil, err
+	}
+
+	return data, err
+}
+
+func UnmarshalIdentity(data []byte) (Identity, error) {
+	var identity Identity
+	var i protocol.Identity
+	var hk *keyset.Handle
+	err := proto.Unmarshal(data, &i)
+	if core.IsErr(err, "cannot unmarshal identity: %v") {
+		return identity, err
+	}
+
+	identity.Nick = i.Nick
+	hk, err = insecurecleartextkeyset.Read(keyset.NewBinaryReader(bytes.NewReader(i.Crypt)))
+	if core.IsErr(err, "cannot unmarshal crypt key: %v") {
+		return identity, err
+	}
+	if i.Private {
+		identity.PrivateCrypt = hk
+		hk, err = hk.Public()
+		if core.IsErr(err, "cannot derive public key: %v") {
+			return identity, err
+		}
+		identity.PublicCrypt = hk
+	} else {
+		identity.PublicCrypt = hk
+	}
+
+	hk, err = insecurecleartextkeyset.Read(keyset.NewBinaryReader(bytes.NewReader(i.Hash)))
+	if core.IsErr(err, "cannot unmarshal hash key: %v") {
+		return identity, err
+	}
+	if i.Private {
+		identity.PrivateHash = hk
+		hk, err = hk.Public()
+		if core.IsErr(err, "cannot derive public key: %v") {
+			return identity, err
+		}
+		identity.PublicHash = hk
+	} else {
+		identity.PublicHash = hk
+	}
+
+	return identity, err
+}

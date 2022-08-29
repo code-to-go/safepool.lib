@@ -1,0 +1,12 @@
+syntax="proto3";
+package protocol;
+option go_package = "./protocol";
+
+
+message Identity {
+    float version = 1;
+    bool private = 2;
+    map<string,bytes> keys = 3;
+    string nick = 4;
+}
+

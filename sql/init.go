@@ -59,6 +59,10 @@ func LoadSQLFromFile(name string) {
 }
 
 func OpenDB() error {
+	if db != nil {
+		return nil
+	}
+
 	dbPath := filepath.Join(xdg.ConfigHome, DbName)
 	_, err := os.Stat(dbPath)
 	if errors.Is(err, os.ErrNotExist) {
