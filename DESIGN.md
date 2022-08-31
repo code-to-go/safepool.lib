@@ -56,15 +56,34 @@ For each change file:
 # API
 
 ```
-  char* start() 
+  func Start() 
   func AddDomain(domain string) error
   func AddExchange(domain string, exchange json) error
   func GetPublic() string
-
+  func ListDomains() []string
+  func State() []string
+  func Watch(func handler(string))
 ```
 
+# Console Protocol
+
+Weshare 
+- Helo: provide server information
+- State: list domains and status
+- State [domain]: list files in a domain 
+- Add [domain/file]: add the file to the stage for the next push
+- Mon: monitor updates from all domains
+- AddDomain [invite]: add a new domain 
+- NewDomain [invite]: create a new domain
 
 
+## Samples
+| Request | Response | 
+|------|----|
+| HELO | WESHARE 1.0 |
+| STATE | public.weshare.zone <br> test.weshare.zone |
+| STATE test.weshare.zone | sample.txt C-<br>other.txt U- |
+| ADD test.weshare.zone/
 
 # Design
 - Layer1: Storage
@@ -93,7 +112,7 @@ The following config parameters are supported:
 - identity.private: private key of the user
 - 
 
-### TABLE Log
+### TABLE Changes
 tracks all change coming from the net
 
 | Field | Type | Constraints | Description |
@@ -147,12 +166,8 @@ All files have a version id, which is 1.0
 📦public.weshare
 ┣📜U.
 ┃ ┣📜admins
-┃ ┣📜users
-┃ ┣📜exchanges
-┃ ┣📜log
-┃ ┗ 📂merkle
-┃   ┣📜d4ccaf2627557c756a0762419a4b6695ddef78dd8c9f78dd8c93262755726273.mrk
-┃   ┗📜3a42c503953909637f78dd8c99b3b85ddde362415585afc11901bdefe8349102.mrk
+┃ ┣📜domain
+┃ ┣📜C.399019283
 ┣ 📜README.md
 ┣ 📂manual
   ┗📜index.md

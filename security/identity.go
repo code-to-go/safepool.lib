@@ -71,13 +71,13 @@ func MarshalIdentity(identity Identity, private bool) ([]byte, error) {
 		return nil, err
 	}
 
-	if !private {
-		sign, err := Sign(identity, data)
-		if core.IsErr(err, "cannot sign serialized identity: %v") {
-			return nil, err
-		}
-		data = append(data, sign...)
-	}
+	// if !private {
+	// 	sign, err := Sign(identity, data)
+	// 	if core.IsErr(err, "cannot sign serialized identity: %v") {
+	// 		return nil, err
+	// 	}
+	// 	data = append(data, sign...)
+	// }
 
 	return data, err
 }
@@ -100,11 +100,11 @@ func UnmarshalIdentity(data []byte) (Identity, error) {
 	var sign []byte
 
 	err := proto.Unmarshal(data, &i)
-	if err != nil {
-		sign = data[len(data)-64:]
-		data = data[0 : len(data)-64]
-		err = proto.Unmarshal(data, &i)
-	}
+	// if err != nil {
+	// 	sign = data[len(data)-64:]
+	// 	data = data[0 : len(data)-64]
+	// 	err = proto.Unmarshal(data, &i)
+	// }
 
 	if core.IsErr(err, "cannot unmarshal identity: %v") {
 		return identity, err

@@ -50,6 +50,15 @@ func pingExchanger(e exchanges.Exchanger, domain string, data []byte) (time.Dura
 }
 
 func initDomain(d model.Domain, e exchanges.Exchanger) error {
+	lockFile := path.Join(d.Name, core.DomainFilelock)
+	domainFile := path.Join(d.Name, core.DomainFilename)
+	signFile := path.Join(d.Name, core.DomainFilesign)
+
+	err := e.Write(lockFile, bytes.NewBuffer(nil))
+	if core.IsErr(err, "cannot create lock file") {
+		return err
+	}
+
 	encKey, err := security.Generate32BytesKey()
 	if core.IsErr(err, "cannot generate symmetric encryption key: %v") {
 		return err
@@ -70,7 +79,7 @@ func initDomain(d model.Domain, e exchanges.Exchanger) error {
 		return err
 	}
 
-	domainFile := protocol.DomainFile{
+	data, err := proto.Marshal(&protocol.DomainFile{
 		Version: 1.0,
 		Name:    d.Name,
 		EncId:   0,
@@ -81,37 +90,64 @@ func initDomain(d model.Domain, e exchanges.Exchanger) error {
 				EncKey:   encPubKey,
 			},
 		},
-	}
-
-	data, err := proto.Marshal(&domainFile)
+	})
 	if core.IsErr(err, "cannot marshal domain file: %v") {
 		return err
 	}
 
-	buf := bytes.Buffer{}
-	err = security.SignAndWrite(Self, data, &buf, nil)
+	sign, err := security.Sign(Self, data)
 	if core.IsErr(err, "cannot sign domain file: %v") {
 		return err
 	}
+	err = e.Write(signFile, bytes.NewBuffer(sign))
+	if core.IsErr(err, "cannot write domain signature: %v") {
+		return err
+	}
+	err = e.Write(domainFile, bytes.NewBuffer(data))
+	if core.IsErr(err, "cannot write domain file: %v") {
+		return err
+	}
+	err = e.Delete(lockFile)
+	if core.IsErr(err, "cannot delete lock file: %v") {
+		return err
+	}
 
-	domainPath := path.Join(d.Name, core.DomainFilename)
-	c := Connections[d.Name]
-
-	err = c.Write(domainPath, &buf)
 	return nil
+}
+
+func waitForLock(d model.Domain, e exchanges.Exchanger) {
+	lockFile := path.Join(d.Name, core.DomainFilelock)
+	cnt := 0
+	_, err := e.Stat(lockFile)
+	for !os.IsNotExist(err) {
+		time.Sleep(time.Second)
+		_, err = e.Stat(lockFile)
+		if cnt == 30 {
+			e.Delete(lockFile)
+		}
+	}
 }
 
 func validateDomain(d model.Domain, e exchanges.Exchanger) error {
 	domainFile := path.Join(d.Name, core.DomainFilename)
+	signFile := path.Join(d.Name, core.DomainFilesign)
+
+	waitForLock(d, e)
 
 	_, err := e.Stat(domainFile)
 	if os.IsNotExist(err) {
 		return initDomain(d, e)
 	}
 
-	buf := bytes.Buffer{}
-	err = e.Read(domainFile, &buf)
+	domainData := bytes.Buffer{}
+	err = e.Read(domainFile, &domainData)
 	if core.IsErr(err, "cannot read domain file from %s/%s", e, d.Name) {
+		return err
+	}
+
+	signData := bytes.Buffer{}
+	err = e.Read(signFile, &signData)
+	if core.IsErr(err, "cannot read sign file from %s/%s", e, d.Name) {
 		return err
 	}
 
@@ -119,7 +155,7 @@ func validateDomain(d model.Domain, e exchanges.Exchanger) error {
 	if core.IsErr(err, "cannot read admins identities from db: %v") {
 		return err
 	}
-	data, _, err := security.ReadAndVerify(admins, &buf)
+	data, _, err := security.ReadAndVerify(admins, &domainData)
 	if core.IsErr(err, "domain file is not signed by a known admin") {
 		return err
 	}

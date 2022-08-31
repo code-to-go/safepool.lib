@@ -20,3 +20,20 @@ func ReadConfig(name string) (Config, error) {
 	err = yaml.Unmarshal(data, &c)
 	return c, err
 }
+
+var SampleConfig = Config{
+	SFTP: &SFTPConfig{
+		Addr:     "hostname",
+		Username: "username",
+		Password: "password when not using private key authentication",
+		KeyPath:  "path when using private key authentication",
+		Base:     "local path on the sftp server",
+	},
+	S3: &S3Config{
+		Region:    "AWS region, i.e. eu-central-1",
+		Endpoint:  "S3 endpoint, i.e. s3.eu-central-1.amazonaws.com",
+		Bucket:    "S3 bucket name",
+		AccessKey: "S3 access key",
+		Secret:    "S3 secret key",
+	},
+}

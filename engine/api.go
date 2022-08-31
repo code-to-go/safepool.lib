@@ -68,15 +68,16 @@ func Start() error {
 		return err
 	}
 
+	err = loadIdentity()
+	if core.IsErr(err, "cannot load identity: %v") {
+		return err
+	}
+
 	// load or set weshare path
 	var ok bool
 	WesharePath, _, _, ok = sql.GetConfig("", wesharePathKey)
 	if !ok {
 		return core.ErrNotInitialized
-	}
-
-	if core.IsErr(loadIdentity(), "cannot load identity: %v") {
-		return err
 	}
 
 	return err

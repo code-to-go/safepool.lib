@@ -4,6 +4,8 @@ import (
 	"flag"
 	"os"
 	"strings"
+	"weshare/core"
+	"weshare/engine"
 
 	"github.com/sirupsen/logrus"
 )
@@ -63,6 +65,14 @@ type Options struct {
 func ProcessArgs() {
 	options := Options{}
 
+	err := engine.Start()
+	if err == core.ErrNotInitialized {
+		err = initIdentity()
+		if core.IsErr(err, "cannot init identity: %v") {
+			return
+		}
+	}
+
 	_, completion := os.LookupEnv("COMP_LINE")
 	if completion {
 		//		complete(strings.Split(cl, " ")[1:])
@@ -99,9 +109,13 @@ func ProcessArgs() {
 	commands := os.Args[len(os.Args)-nArg:]
 	commands = replaceShortcuts(commands)
 
+	engine.Start()
+
 	switch commands[0] {
 	case "join":
 		processJoin(commands[1:], options)
+	case "token":
+		processToken(commands[1:], options)
 	case "state":
 		processState(commands[1:], options)
 	case "add":
