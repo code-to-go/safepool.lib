@@ -1,8 +1,10 @@
 package engine
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"weshare/core"
 	"weshare/model"
 	"weshare/security"
@@ -48,7 +50,7 @@ func Init(nick string, wesharePath string) (security.Identity, error) {
 		return identity, err
 	}
 
-	data, err := security.MarshalIdentity(identity, true)
+	data, err := json.Marshal(identity)
 	if core.IsErr(err, "cannot marshal identity: %v") {
 		return identity, err
 	}
@@ -89,7 +91,8 @@ func loadIdentity() error {
 		return core.ErrNotInitialized
 	}
 
-	identity, err := security.UnmarshalIdentity(data)
+	var identity security.Identity
+	err := json.Unmarshal(data, &identity)
 	if core.IsErr(err, "cannot unmarshal identity from db: %v") {
 		return err
 	}
@@ -110,37 +113,70 @@ func ListDomains() []string {
 	return domains
 }
 
-// SetAccess add a new domain to the user
-func Join(access model.Access) error {
+// Join add a new domain to the user
+func Join(access model.Transport) error {
 	err := sql.SetAccess(access)
 	if core.IsErr(err, "cannot store access information to db: %v") {
 		return err
 	}
 
-	return err
+	err = accessDomain(access.Domain)
+	if core.IsErr(err, "cannot access to domain %s: %v", access.Domain) {
+		return err
+	}
+	return nil
 }
 
-func SetStagedState(file model.File, staged bool) error {
-	f, err := sql.GetFile(file.Domain, file.Name, file.Author)
+func Add(filename string, staged bool) error {
+	rel, err := filepath.Rel(WesharePath, filename)
+	if core.IsErr(err, "cannot find path relative to weshare root for %s", filename) {
+		return core.ErrInvalidFilePath
+	}
+
+	p := strings.SplitN(rel, string(os.PathSeparator), 2)
+	if len(p) != 2 {
+		return core.ErrInvalidFilePath
+	}
+
+	domain, name := p[0], p[1]
+	syncLocalToDB(domain)
+
+	file := model.File{
+		Domain: domain,
+		Name:   name,
+	}
+
+	files, err := sql.GetFilesByName(file.Domain, file.Name)
 	if core.IsErr(err, "cannot find file '%s' in db: %v", file.Name) {
 		return err
 	}
 
-	if staged {
-		f.State |= model.Staged
-	} else {
-		f.State &= ^model.Staged
+	for _, f := range files {
+		if staged {
+			f.State |= model.Staged | model.Watched
+		} else {
+			f.State &= ^(model.Staged | model.Watched)
+		}
+		err = sql.SetFile(f)
+		if err != nil {
+			return err
+		}
 	}
-	err = sql.SetFile(f)
+
 	core.IsErr(err, "cannot set PushRequest status for %s: %v", file.Name)
 	return err
 }
 
-// Status returns the current
-func Status(domain string) ([]model.File, error) {
+// State returns the current
+func State(domain string) ([]model.File, error) {
+	err := syncLocalToDB(domain)
+	if core.IsErr(err, "cannot sync local to db: %v") {
+		return nil, err
+	}
+
 	return sql.GetFilesWithUpdates(domain)
 }
 
-func SyncAll() ([]model.File, error) {
+func Update(domain string) ([]model.File, error) {
 	return nil, nil
 }

@@ -10,7 +10,6 @@ require (
 	github.com/fatih/color v1.13.0
 	github.com/fsnotify/fsnotify v1.5.4
 	github.com/godruoyi/go-snowflake v0.0.1
-	github.com/golang/protobuf v1.5.2
 	github.com/google/tink/go v1.7.0
 	github.com/google/uuid v1.3.0
 	github.com/grailbio/base v0.0.10

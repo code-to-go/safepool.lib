@@ -1,4 +1,4 @@
-package exchanges
+package transport
 
 import (
 	"io/ioutil"
@@ -7,8 +7,9 @@ import (
 )
 
 type Config struct {
-	SFTP *SFTPConfig `json:"sftp,omitempty" yaml:"sftp,omitempty"`
-	S3   *S3Config   `json:"s3,omitempty" yaml:"s3,omitempty"`
+	SFTP  *SFTPConfig  `json:"sftp,omitempty" yaml:"sftp,omitempty"`
+	S3    *S3Config    `json:"s3,omitempty" yaml:"s3,omitempty"`
+	Local *LocalConfig `json:"local,omitempty" yaml:"local,omitempty"`
 }
 
 func ReadConfig(name string) (Config, error) {

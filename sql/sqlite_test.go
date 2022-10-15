@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 	"weshare/model"
+	"weshare/security"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +27,7 @@ func TestDb(t *testing.T) {
 	}
 	assert.Equal(t, "test", s, "cannot get config: %v", err)
 
-	err = SetAccess(model.Access{})
+	err = SetAccess(model.Transport{})
 	assert.NoErrorf(t, err, "cannot add domain: %v", err)
 
 	domains, err := GetDomains()
@@ -37,14 +38,14 @@ func TestDb(t *testing.T) {
 	err = SetFile(model.File{
 		Domain:  "public.weshare.zone",
 		Name:    "test.txt",
-		Author:  []byte("author"),
+		Author:  security.Identity{},
 		Hash:    []byte("hash"),
 		ModTime: now,
 		State:   model.LocalCreated,
 	})
 	assert.NoErrorf(t, err, "cannot set file: %v", err)
 
-	f, err := GetFile("public.weshare.zone", "test.txt", []byte("author"))
+	f, err := GetFileByName("public.weshare.zone", "test.txt")
 	assert.NoErrorf(t, err, "cannot get file: %v", err)
 	assert.Equal(t, now, f.ModTime)
 

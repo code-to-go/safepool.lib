@@ -1,4 +1,4 @@
-package exchanges
+package transport
 
 import (
 	"io/fs"

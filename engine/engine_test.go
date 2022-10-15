@@ -7,9 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"weshare/exchanges"
 	"weshare/model"
 	"weshare/sql"
+	"weshare/transport"
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
@@ -28,16 +28,8 @@ func TestLocalSync(t *testing.T) {
 		ioutil.WriteFile(filepath.Join(WesharePath, "test.weshare.zone", fmt.Sprintf("T%d", i)), data[i:], 0755)
 	}
 
-	err := syncLocalToDB("test.weshare.zone")
-	assert.NoErrorf(t, err, "cannot sync locally: %v", err)
-
-	files, err := Status("test.weshare.zone")
-	assert.NoErrorf(t, err, "cannot get status: %v", err)
-
-	assert.Len(t, files, len(data), "Unexpected number of items: %d", len(files))
-
-	SetStagedState(files[0], true)
-	files, err = Status("test.weshare.zone")
+	Add(filepath.Join(WesharePath, "test.weshare.zone", "T0"), true)
+	files, err := State("test.weshare.zone")
 	assert.NoErrorf(t, err, "cannot get status: %v", err)
 
 	if files[0].State&model.Staged == 0 {
@@ -56,13 +48,13 @@ func TestRemoteSync(t *testing.T) {
 	sql.LoadSQLFromFile("../sql/sqlite.sql")
 	Start()
 
-	var config exchanges.Config
+	var config transport.Config
 	data, _ := ioutil.ReadFile("../../credentials/s3-2.yaml")
 	yaml.Unmarshal(data, &config)
 
-	Join(model.Access{
+	Join(model.Transport{
 		Domain:    "test.weshare.zone",
-		Exchanges: []exchanges.Config{config},
+		Exchanges: []transport.Config{config},
 	})
 
 }

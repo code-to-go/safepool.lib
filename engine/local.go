@@ -87,7 +87,7 @@ func fileHasChanged(ev fsnotify.Event) {
 					f := model.File{
 						Domain:  domain,
 						Name:    name,
-						Author:  Self.Keys[security.Ed25519].Public,
+						Author:  Self,
 						ModTime: stat.ModTime(),
 						Hash:    h[:],
 						State:   model.LocalCreated,
@@ -96,14 +96,14 @@ func fileHasChanged(ev fsnotify.Event) {
 				}
 			}
 		case fsnotify.Write:
-			f, err := sql.GetFile(domain, name, Self.Keys[security.Ed25519].Public)
+			f, err := sql.GetFileByName(domain, name)
 			if err != nil {
 				f.State |= model.LocalModified
 				core.IsErr(sql.SetFile(f), "cannot set in db '%v': %v", f)
 			}
 
 		case fsnotify.Remove:
-			f, err := sql.GetFile(domain, name, Self.Keys[security.Ed25519].Public)
+			f, err := sql.GetFileByName(domain, name)
 			if err != nil {
 				f.State |= model.LocalDeleted
 				core.IsErr(sql.SetFile(f), "cannot set in db '%v': %v", f)
@@ -158,7 +158,7 @@ func syncLocalToDB(domain string) error {
 				core.IsErr(sql.SetFile(f2), "cannot set in db '%v': %v", f2)
 			} else {
 				f.State = model.LocalCreated
-				f.Author = security.Primary(Self).Public
+				f.Author = Self.Public()
 				core.IsErr(sql.SetFile(f), "cannot set in db '%v': %v", f)
 			}
 		} else if fileOnlyOnDb {

@@ -6,16 +6,16 @@ import (
 	"io/ioutil"
 	"weshare/core"
 	"weshare/engine"
-	"weshare/exchanges"
 	"weshare/model"
 	"weshare/security"
 	"weshare/sql"
+	"weshare/transport"
 
 	"github.com/fatih/color"
 	"github.com/manifoldco/promptui"
 )
 
-func s3Wizard() *exchanges.Config {
+func s3Wizard() *transport.Config {
 	var region, endpoint, bucket, accessKey, secret string
 	var done bool
 	for !done {
@@ -67,8 +67,8 @@ func s3Wizard() *exchanges.Config {
 		}
 	}
 
-	return &exchanges.Config{
-		S3: &exchanges.S3Config{
+	return &transport.Config{
+		S3: &transport.S3Config{
 			Region:    region,
 			Endpoint:  endpoint,
 			Bucket:    bucket,
@@ -78,19 +78,50 @@ func s3Wizard() *exchanges.Config {
 	}
 }
 
-func exchangesWizard(domain string) (model.Access, error) {
-	var configs []exchanges.Config
-	var c *exchanges.Config
+func localWizard() *transport.Config {
+	var base string
+	var done bool
+	for !done {
+		prompt := promptui.Prompt{
+			Label:   "base folder",
+			Default: base,
+		}
+		base, _ = prompt.Run()
+		color.Green("base folder: %s", base)
+
+		sel := promptui.Select{
+			Label: "Confirm",
+			Items: []string{"Ok, all good", "Go back, need to fix", "Wrong exchange type, back to main"},
+		}
+		i, _, _ := sel.Run()
+		done = i == 0
+		if i == 2 {
+			return nil
+		}
+	}
+
+	return &transport.Config{
+		Local: &transport.LocalConfig{
+			Base: base,
+		},
+	}
+}
+
+func transportWizard(domain string) (model.Transport, error) {
+	var configs []transport.Config
+	var c *transport.Config
 
 done:
 	for {
 		prompt := promptui.Select{
 			Label: "Choose the exchange type or done to complete and generate the token",
-			Items: []string{"S3", "SFTP", "Azure", "Done"},
+			Items: []string{"S3", "SFTP", "Azure", "Local", "Done"},
 		}
 		_, s, _ := prompt.Run()
 		switch s {
 		case "S3":
+			c = s3Wizard()
+		case "Local":
 			c = s3Wizard()
 		case "Done":
 			break done
@@ -100,26 +131,26 @@ done:
 		}
 	}
 
-	return model.Access{
+	return model.Transport{
 		Domain:    domain,
 		Exchanges: configs,
 	}, nil
 }
 
-func loadConfig(domain string, configFile string) (model.Access, error) {
+func loadConfig(domain string, configFile string) (model.Transport, error) {
 	data, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		color.Red("cannot read file '%s': %v\n", configFile, err)
-		return model.Access{}, err
+		return model.Transport{}, err
 	}
-	var config []exchanges.Config
+	var config []transport.Config
 	err = json.Unmarshal(data, &config)
 	if err != nil {
 		color.Red("file '%s' is not a valid json configuration: %v\n", configFile, err)
-		return model.Access{}, err
+		return model.Transport{}, err
 	}
 
-	return model.Access{
+	return model.Transport{
 		Domain:    domain,
 		Exchanges: config,
 	}, nil
@@ -132,7 +163,7 @@ func processToken(commands []string, options Options) {
 	}
 
 	var err error
-	var access model.Access
+	var access model.Transport
 	domain := commands[0]
 	if len(commands) == 2 {
 		configFile := commands[1]
@@ -143,21 +174,22 @@ func processToken(commands []string, options Options) {
 	} else {
 		access, err = sql.GetAccess(domain)
 		if err != nil {
-			access, err = exchangesWizard(domain)
+			access, err = transportWizard(domain)
 		}
 	}
 
-	identity, err := security.MarshalIdentity(engine.Self, false)
-	if core.IsErr(err, "cannot marshal identity: %v") {
-		return
-	}
 	data, err := json.Marshal(model.AccessToken{
-		Access:   access,
-		Identity: identity,
+		Transport: access,
+		Identity:  engine.Self.Public(),
 	})
 	if core.IsErr(err, "cannot marshal access token to json: %v") {
 		return
 	}
+
+	if options.PrintExchange {
+		color.Blue(string(data))
+	}
+
 	sign, err := security.Sign(engine.Self, data)
 	if core.IsErr(err, "cannot sign access token: %v") {
 		return

@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"testing"
 	"weshare/algo"
-	"weshare/auth"
 	"weshare/model"
 	"weshare/security"
 	"weshare/sql"
@@ -24,10 +23,9 @@ func TestChanges(t *testing.T) {
 
 	domain := "test.weshare.zone"
 	sql.SetEncKey(domain, 1, []byte("sample"))
-	sql.SetUser(domain, auth.User{
+	sql.SetUser(domain, model.User{
 		Identity: Self,
 		Active:   true,
-		Admin:    false,
 	})
 
 	data := make([]byte, 128*1024)
@@ -49,11 +47,11 @@ func TestChanges(t *testing.T) {
 	changeFile, f, err := GenerateChangeFile(f, blocks)
 	assert.NoErrorf(t, err, "Cannot generate file: %v", err)
 
-	f, err = StatChangeFile(changeFile)
+	h, err := StatChangeFile(changeFile)
 	assert.NoErrorf(t, err, "Cannot stat change file: %v", err)
-	assert.Equal(t, domain, f.Domain)
-	assert.Equal(t, "sample.txt", f.Name)
-	assert.Equal(t, Self.Keys[security.Ed25519].Public, f.Author)
+	assert.Equal(t, domain, h.Domain)
+	assert.Equal(t, "sample.txt", h.Name)
+	assert.Equal(t, Self.Keys[security.Ed25519].Public, h.Author)
 
 	os.RemoveAll(filepath.Join(WesharePath, domain))
 

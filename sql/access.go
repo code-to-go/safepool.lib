@@ -24,7 +24,7 @@ func GetDomains() ([]string, error) {
 	return domains, nil
 }
 
-func SetAccess(a model.Access) error {
+func SetAccess(a model.Transport) error {
 
 	data, err := json.Marshal(a)
 	if core.IsErr(err, "cannot serialize access config for domain %s: %v", a.Domain) {
@@ -34,18 +34,18 @@ func SetAccess(a model.Access) error {
 	return err
 }
 
-// GetAccess returns domain specific information (i.e. exchanges configuration)
-func GetAccess(name string) (model.Access, error) {
+// GetAccess returns domain specific information (i.e. transport configuration)
+func GetAccess(domain string) (model.Transport, error) {
 	var data []byte
-	var access model.Access
+	var access model.Transport
 
-	row := queryRow("GET_ACCESS", names{"name": name})
-	err := row.Scan(&access.Granted, &data)
-	if core.IsErr(err, "cannot get access for domain %s: %v", name) {
+	row := queryRow("GET_ACCESS", names{"domain": domain})
+	err := row.Scan(&data)
+	if core.IsErr(err, "cannot get access for domain %s: %v", domain) {
 		return access, err
 	}
 
-	err = json.Unmarshal(data, &access.Exchanges)
-	core.IsErr(err, "cannot deserialize access for domain %s: %v", name)
+	err = json.Unmarshal(data, &access)
+	core.IsErr(err, "cannot deserialize access for domain %s: %v", domain)
 	return access, err
 }

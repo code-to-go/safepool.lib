@@ -1,5 +1,5 @@
 # Introduction
-The exchanges folder contains the drivers to write and read from storage services, including _SFTP_ and _S3_.
+The transport folder contains the drivers to write and read from storage services, including _SFTP_ and _S3_.
 
 # Key Principles
 - Simple interface

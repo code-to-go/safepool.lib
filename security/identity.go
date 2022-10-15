@@ -1,13 +1,15 @@
 package security
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
 	"weshare/core"
-	"weshare/protocol"
 
 	eciesgo "github.com/ecies/go/v2"
-	"github.com/golang/protobuf/proto"
+	"github.com/godruoyi/go-snowflake"
 )
 
 const (
@@ -16,18 +18,20 @@ const (
 )
 
 type Key struct {
-	Public  []byte
-	Private []byte
+	Public  []byte `json:"u"`
+	Private []byte `json:"r,omitempty"`
 }
 
 type Identity struct {
-	Keys map[string]Key
-	Nick string
+	Id   uint64         `json:"i"`
+	Keys map[string]Key `json:"k"`
+	Nick string         `json:"n"`
 }
 
 func NewIdentity(nick string) (Identity, error) {
 	var identity Identity
 
+	identity.Id = snowflake.ID()
 	identity.Nick = nick
 	privateCrypt, err := eciesgo.GenerateKey()
 	if core.IsErr(err, "cannot generate secp256k1 key: %v") {
@@ -50,86 +54,48 @@ func NewIdentity(nick string) (Identity, error) {
 	return identity, nil
 }
 
-func MarshalIdentity(identity Identity, private bool) ([]byte, error) {
-	i := protocol.Identity{
-		Version: 1.0,
-		Private: private,
-		Keys:    map[string][]byte{},
-		Nick:    identity.Nick,
-	}
-
-	for id, key := range identity.Keys {
-		if private {
-			i.Keys[id] = key.Private
-		} else {
-			i.Keys[id] = key.Public
-		}
-	}
-
-	data, err := proto.Marshal(&i)
-	if core.IsErr(err, "cannot marshal protocol.Identity: %v") {
-		return nil, err
-	}
-
-	// if !private {
-	// 	sign, err := Sign(identity, data)
-	// 	if core.IsErr(err, "cannot sign serialized identity: %v") {
-	// 		return nil, err
-	// 	}
-	// 	data = append(data, sign...)
-	// }
-
-	return data, err
-}
-
-func derivePublicKey(id string, private []byte) []byte {
-	switch id {
-	case Secp256k1:
-		pk := eciesgo.NewPrivateKeyFromBytes(private)
-		return pk.PublicKey.Bytes(true)
-	case Ed25519:
-		pk := ed25519.PrivateKey(private)
-		return pk.Public().(ed25519.PublicKey)
-	}
-	return nil
-}
-
-func UnmarshalIdentity(data []byte) (Identity, error) {
+func IdentityFromBase64(b64 string) (Identity, error) {
 	var identity Identity
-	var i protocol.Identity
-	var sign []byte
-
-	err := proto.Unmarshal(data, &i)
-	// if err != nil {
-	// 	sign = data[len(data)-64:]
-	// 	data = data[0 : len(data)-64]
-	// 	err = proto.Unmarshal(data, &i)
-	// }
-
-	if core.IsErr(err, "cannot unmarshal identity: %v") {
+	data, err := base64.StdEncoding.DecodeString(b64)
+	if core.IsErr(err, "cannot decode Identity string in base64: %v") {
 		return identity, err
 	}
 
-	identity.Keys = map[string]Key{}
-	for id, key := range i.Keys {
-		if i.Private {
-			identity.Keys[id] = Key{
-				Private: key,
-				Public:  derivePublicKey(id, key),
-			}
-		} else {
-			identity.Keys[id] = Key{
-				Public: key,
-			}
+	err = json.Unmarshal(data, &identity)
+	if core.IsErr(err, "cannot decode Identity string from json: %v") {
+		return identity, err
+	}
+	return identity, nil
+}
+
+func (i Identity) Public() Identity {
+	identity := Identity{Nick: i.Nick, Keys: map[string]Key{}}
+	for k, v := range i.Keys {
+		identity.Keys[k] = Key{
+			Public: v.Public,
 		}
 	}
-	identity.Nick = i.Nick
+	return identity
+}
 
-	if sign != nil {
-		if Verify(identity, data, sign) == false {
-			return identity, core.ErrInvalidSignature
-		}
+func (i Identity) Primary() Key {
+	return i.Keys[Ed25519]
+}
+
+func (i Identity) Base64() (string, error) {
+	data, err := json.Marshal(i)
+	if core.IsErr(err, "cannot marshal identity: %v") {
+		return "", err
 	}
 
-	return identity, err
+	return base64.StdEncoding.EncodeToString(data), nil
+}
+
+func SameIdentity(a, b Identity) bool {
+	for k, v := range a.Keys {
+		if bytes.Compare(b.Keys[k].Public, v.Public) == 0 {
+			return true
+		}
+	}
+	return false
 }

@@ -1,4 +1,4 @@
-package exchanges
+package transport
 
 import (
 	"io"
@@ -23,16 +23,18 @@ const (
 	IncludeHiddenFiles ListOption = 1
 )
 
+type Range struct {
+	From int64
+	To   int64
+}
+
 // Exchanger is a low level interface to storage services such as S3 or SFTP
 type Exchanger interface {
 	// Read reads data from a file into a writer
-	Read(name string, dest io.Writer) error
+	Read(name string, rang *Range, dest io.Writer) error
 
 	// Write writes data to a file name. An existing file is overwritten
 	Write(name string, source io.Reader) error
-
-	// Concat writes a new file concata
-	Concat(name string, source []Source) error
 
 	//ReadDir returns the entries of a folder content
 	ReadDir(name string, opts ListOption) ([]fs.FileInfo, error)
@@ -57,6 +59,8 @@ func NewExchanger(c Config) (Exchanger, error) {
 		return NewSFTP(*c.SFTP)
 	case c.S3 != nil:
 		return NewS3(*c.S3)
+	case c.Local != nil:
+		return NewLocal(*c.Local)
 	}
 
 	return nil, core.ErrNoDriver

@@ -1,12 +1,14 @@
-package exchanges
+package transport
 
 import (
 	"fmt"
 	"io"
 	"io/fs"
+	"path"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -80,11 +82,17 @@ func (s *S3) createBucketIfNeeded() error {
 	return err
 }
 
-func (s *S3) Read(name string, dest io.Writer) error {
+func (s *S3) Read(name string, rang *Range, dest io.Writer) error {
+	var r *string
+	if rang != nil {
+		r = aws.String(fmt.Sprintf("byte%d-%d", rang.From, rang.To))
+	}
+
 	rawObject, err := s.svc.GetObject(
 		&s3.GetObjectInput{
 			Bucket: &s.bucket,
 			Key:    &name,
+			Range:  r,
 		})
 	if err != nil {
 		logrus.Errorf("cannot read %s/%s: %v", s, name, err)
@@ -110,10 +118,6 @@ func (s *S3) Write(name string, source io.Reader) error {
 		logrus.Errorf("cannot write %s/%s: %v", s.String(), name, err)
 	}
 	return err
-}
-
-func (s *S3) Concat(name string, source []Source) error {
-	return nil
 }
 
 func (s *S3) ReadDir(prefix string, opts ListOption) ([]fs.FileInfo, error) {
@@ -147,7 +151,28 @@ func (s *S3) ReadDir(prefix string, opts ListOption) ([]fs.FileInfo, error) {
 }
 
 func (s *S3) Stat(name string) (fs.FileInfo, error) {
-	return nil, nil
+	head, err := s.svc.HeadObject(&s3.HeadObjectInput{
+		Bucket: &s.bucket,
+		Key:    &name,
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case "NotFound": // s3.ErrCodeNoSuchKey does not work, aws is missing this error code so we hardwire a string
+				return nil, fs.ErrNotExist
+			default:
+				return nil, fs.ErrInvalid
+			}
+		}
+		return nil, err
+	}
+
+	return simpleFileInfo{
+		name:    path.Base(name),
+		size:    *head.ContentLength,
+		isDir:   strings.HasSuffix(name, "/"),
+		modTime: *head.LastModified,
+	}, nil
 }
 
 func (s *S3) Delete(name string) error {
@@ -159,7 +184,7 @@ func (s *S3) Delete(name string) error {
 }
 
 func (s *S3) Close() error {
-	return nil
+	return s.Close()
 }
 
 func (s *S3) String() string {

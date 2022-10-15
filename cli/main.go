@@ -56,9 +56,10 @@ func replaceShortcuts(commands []string) []string {
 }
 
 type Options struct {
-	Verbose  bool
-	Verbose2 bool
-	LogLevel string
+	Verbose       bool
+	Verbose2      bool
+	LogLevel      string
+	PrintExchange bool
 }
 
 // ProcessArgs analyze the
@@ -87,6 +88,9 @@ func ProcessArgs() {
 		"shows verbose log")
 
 	flag.BoolVar(&options.Verbose2, "vv", false,
+		"shows very verbose log")
+
+	flag.BoolVar(&options.PrintExchange, "printExchange", false,
 		"shows very verbose log")
 
 	flag.Parse()

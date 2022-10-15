@@ -4,21 +4,24 @@ import (
 	"database/sql"
 	"weshare/core"
 	"weshare/model"
+	"weshare/security"
 
 	"github.com/sirupsen/logrus"
 )
 
-func getFiles(domain string, rows *sql.Rows) []model.File {
+func getFiles(rows *sql.Rows) []model.File {
 	var files []model.File
 	for rows.Next() {
-		file := model.File{Domain: domain}
+		var file model.File
 
 		var author string
+		var hash string
 		var modTime int64
-		err := rows.Scan(&file.Name, &file.Hash, &author, &modTime, &file.State)
+		err := rows.Scan(&file.Domain, &file.Name, &file.Id, &author, &modTime, &file.State, &hash)
 		if !core.IsErr(err, "cannot read file row from db: %v") {
 			file.ModTime = timeDec(modTime)
-			file.Author = base64dec(author)
+			file.Author, _ = security.IdentityFromBase64(author)
+			file.Hash = base64dec(hash)
 			files = append(files, file)
 		}
 	}
@@ -26,37 +29,63 @@ func getFiles(domain string, rows *sql.Rows) []model.File {
 }
 
 func GetFiles(domain string) ([]model.File, error) {
-	// name, hash, modTime, state
+	// -- GET_FILES
+	// SELECT domain, name, id, firstId, author, modTime, state, hash FROM files " +
+	// 	"WHERE domain=:domain
+
 	rows, err := query("GET_FILES", names{"domain": domain})
 	if core.IsErr(err, "cannot read file rows from db: %v") {
 		return nil, err
 	}
 
-	return getFiles(domain, rows), nil
+	return getFiles(rows), nil
 }
 
 func GetFilesWithUpdates(domain string) ([]model.File, error) {
-	// name, hash, modTime, state
+	// -- GET_FILES_WITH_UPDATES
+	// SELECT domain,name, id, firstId, author, modTime, state, hash FROM files " +
+	// 	"WHERE domain=:domain AND state != 0
+
 	rows, err := query("GET_FILES_WITH_UPDATES", names{"domain": domain})
 	if core.IsErr(err, "cannot read file rows from db: %v") {
 		return nil, err
 	}
 
-	return getFiles(domain, rows), nil
+	return getFiles(rows), nil
 }
 
-func GetFile(domain string, name string, author []byte) (model.File, error) {
-	row := queryRow("GET_FILE", names{"domain": domain, "name": name, "author": base64enc(author)})
-	var modTime int64
-	var hash string
-	file := model.File{Domain: domain, Name: name, Author: author}
-	err := row.Scan(&file.FirstId, &file.LastId, &file.Alt, &hash, &modTime, &file.State)
-	if err != nil {
-		return file, err
+func GetFilesByFirstId(domain string, firstId uint64) ([]model.File, error) {
+	// -- GET_FILES_BY_FIRSTID
+	// SELECT domain,name, id, firstId, author, modTime, state, hash FROM files " +
+	// 	"WHERE domain=:domain AND firstId=:firstId
+
+	rows, err := query("GET_FILES_BY_FIRSTID", names{"domain": domain})
+	if core.IsErr(err, "cannot read file rows from db: %v") {
+		return nil, err
 	}
-	file.ModTime = timeDec(modTime)
-	file.Hash = base64dec(hash)
-	return file, nil
+
+	return getFiles(rows), nil
+}
+
+func GetFileByName(domain string, name string) (model.File, error) {
+	rows, err := query("GET_FILE_BY_NAME", names{"domain": domain, "name": name})
+	if core.IsErr(err, "cannot read file rows from db: %v") {
+		return model.File{}, err
+	}
+
+	files := getFiles(rows)
+	if len(files) == 0 {
+		return model.File{}, sql.ErrNoRows
+	}
+	return files[0], nil
+}
+
+func GetFilesByName(domain string, name string) ([]model.File, error) {
+	rows, err := query("GET_FILES_BY_NAME", names{"domain": domain, "name": name})
+	if core.IsErr(err, "cannot read file rows from db: %v") {
+		return nil, err
+	}
+	return getFiles(rows), nil
 }
 
 func GetFilesByHash(hash []byte) ([]model.File, error) {
@@ -65,27 +94,15 @@ func GetFilesByHash(hash []byte) ([]model.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	var files []model.File
-	for rows.Next() {
-		var file model.File
-		var author string
-		var modTime int64
-		err = rows.Scan(&file.Domain, &file.Name, &author, &file.Alt, &modTime, &file.State)
-		if err != nil {
-			continue
-		}
-		file.Author = base64dec(author)
-		file.ModTime = timeDec(modTime)
-		files = append(files, file)
-	}
 
-	return files, nil
+	return getFiles(rows), nil
 }
 
 func SetFile(file model.File) error {
+	author, _ := file.Author.Base64()
 	_, err := exec("SET_FILE", names{"domain": file.Domain, "name": file.Name,
-		"firstId": file.FirstId, "lastId": file.LastId,
-		"author": base64enc(file.Author), "alt": file.Alt, "hash": base64enc(file.Hash),
+		"firstId": file.FirstId, "lastId": file.Id,
+		"author": author, "hash": base64enc(file.Hash),
 		"modtime": timeEnc(file.ModTime), "state": file.State})
 	return err
 }

@@ -1,4 +1,4 @@
-package exchanges
+package transport
 
 import (
 	"fmt"
@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"weshare/core"
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
@@ -81,15 +82,39 @@ func NewSFTP(config SFTPConfig) (Exchanger, error) {
 	return &SFTP{c, base, url}, nil
 }
 
-func (s *SFTP) Read(name string, dest io.Writer) error {
+func (s *SFTP) Read(name string, rang *Range, dest io.Writer) error {
+	f, err := s.c.Open(path.Join(s.base, name))
+	if core.IsErr(err, "cannot open file on sftp server %v:%v", s) {
+		return err
+	}
+
+	if rang == nil {
+		_, err = io.Copy(dest, f)
+	} else {
+		left := rang.To - rang.From
+		f.Seek(rang.From, 0)
+		var b [4096]byte
+
+		for left > 0 && err == nil {
+			var sz int64
+			if rang.From-rang.To > 4096 {
+				sz = 4096
+			} else {
+				sz = rang.From - rang.To
+			}
+			_, err = f.Read(b[0:sz])
+			dest.Write(b[0:sz])
+			left -= sz
+		}
+	}
+	if core.IsErr(err, "cannot read from %s/%s:%v", s, name) {
+		return err
+	}
+
 	return nil
 }
 
 func (s *SFTP) Write(name string, source io.Reader) error {
-	return nil
-}
-
-func (s *SFTP) Concat(name string, source []Source) error {
 	return nil
 }
 
@@ -111,17 +136,17 @@ func (s *SFTP) ReadDir(prefix string, opts ListOption) ([]fs.FileInfo, error) {
 }
 
 func (s *SFTP) Stat(name string) (os.FileInfo, error) {
-	return nil, nil
+	return s.c.Stat(path.Join(s.base, name))
 }
 
 func (s *SFTP) Delete(name string) error {
-	return nil
+	return s.c.Remove(path.Join(s.base, name))
 }
 
 func (s *SFTP) Close() error {
-	return nil
+	return s.Close()
 }
 
 func (s *SFTP) String() string {
-	return ""
+	return s.url
 }

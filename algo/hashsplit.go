@@ -91,7 +91,7 @@ type Range struct {
 	Length uint32
 }
 
-type Replace struct {
+type Edit struct {
 	Slice Range
 	With  Range
 }
@@ -102,13 +102,13 @@ func (h *HashBlock) String() string {
 
 //ab b
 
-func HashDiff2(source, dest []HashBlock) []Replace {
+func HashDiff2(source, dest []HashBlock) []Edit {
 	sLen := len(source)
 	dLen := len(dest)
 	column := make([]int, sLen+1)
-	actions := make([][]Replace, sLen)
+	actions := make([][]Edit, sLen)
 
-	var diffs []Replace
+	var diffs []Edit
 	var sOffset, dOffset uint32
 
 	for y := 1; y <= sLen; y++ {
@@ -150,7 +150,7 @@ func sameBlock(a, b HashBlock) bool {
 	return bytes.Equal(a.Hash[:], b.Hash[:])
 }
 
-func HashDiff(source, dest []HashBlock) []Replace {
+func HashDiff(source, dest []HashBlock) []Edit {
 	var i, j int
 	sLen := len(source)
 	dLen := len(dest)
@@ -164,7 +164,7 @@ func HashDiff(source, dest []HashBlock) []Replace {
 	// }
 
 	var sOffset, dOffset uint32
-	var edits []Replace
+	var edits []Edit
 	for i < sLen && j < dLen {
 		s := source[i]
 		d := dest[j]
@@ -176,21 +176,21 @@ func HashDiff(source, dest []HashBlock) []Replace {
 			dOffset += d.Length
 		case i+1 < sLen && sameBlock(source[i+1], d):
 			//Delete operation
-			edits = append(edits, Replace{
+			edits = append(edits, Edit{
 				Slice: Range{sOffset, s.Length},
 				With:  Range{dOffset, 0},
 			})
 			j++
 			sOffset += s.Length
 		case j+1 < dLen && sameBlock(s, dest[j+1]):
-			edits = append(edits, Replace{
+			edits = append(edits, Edit{
 				Slice: Range{sOffset, 0},
 				With:  Range{dOffset, d.Length},
 			})
 			i++
 			dOffset += d.Length
 		default:
-			edits = append(edits, Replace{
+			edits = append(edits, Edit{
 				Slice: Range{sOffset, s.Length},
 				With:  Range{dOffset, d.Length},
 			})
@@ -227,7 +227,7 @@ func traceMatrixToString(edits [][]int) string {
 	return b.String()
 }
 
-func levenshteinEditDistance(dest, source []HashBlock) []Replace {
+func levenshteinEditDistance(dest, source []HashBlock) []Edit {
 	sLen := len(source)
 	dLen := len(dest)
 	column := make([]int, sLen+1)
@@ -276,11 +276,11 @@ func levenshteinEditDistance(dest, source []HashBlock) []Replace {
 	return reconstructEdit(source, dest, trace)
 }
 
-func reconstructEdit(source, dest []HashBlock, trace [][]int) []Replace {
+func reconstructEdit(source, dest []HashBlock, trace [][]int) []Edit {
 	i := len(trace) - 1
 	j := len(trace[i]) - 1
 
-	var edits []Replace
+	var edits []Edit
 	for i > 0 && j > 0 {
 		switch trace[i][j] {
 		case traceMatch:
@@ -289,16 +289,16 @@ func reconstructEdit(source, dest []HashBlock, trace [][]int) []Replace {
 		case traceInsert:
 			j -= 1
 			println("insert", i, j)
-			edits = append(edits, Replace{})
+			edits = append(edits, Edit{})
 		case traceDelete:
 			i -= 1
 			println("delete", i, j)
-			edits = append(edits, Replace{})
+			edits = append(edits, Edit{})
 
 		case traceReplace:
 			i, j = i-1, j-1
 			println("replace", i, j)
-			edits = append(edits, Replace{})
+			edits = append(edits, Edit{})
 		default:
 			i = 0
 		}

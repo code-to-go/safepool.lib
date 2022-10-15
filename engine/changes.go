@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -9,22 +10,16 @@ import (
 	"weshare/algo"
 	"weshare/core"
 	"weshare/model"
-	"weshare/protocol"
 	"weshare/security"
 	"weshare/sql"
 
 	"github.com/godruoyi/go-snowflake"
-	"github.com/golang/protobuf/proto"
 )
 
 const changeFileSubfolder = ".changes"
 
 func GenerateChangeFile(file model.File, sourceBlocks []algo.HashBlock) (changeFile string, updatedFile model.File, err error) {
-	filename := filepath.Join(WesharePath, file.Domain, file.Alt, file.Name)
-	stat, err := os.Stat(filename)
-	if core.IsErr(err, "cannot stat file %s: %v", filename) {
-		return "", file, err
-	}
+	filename := filepath.Join(WesharePath, file.Domain, file.Name)
 
 	r, err := os.Open(filename)
 	if core.IsErr(err, "cannot open file %s: %v", filename) {
@@ -58,41 +53,35 @@ func GenerateChangeFile(file model.File, sourceBlocks []algo.HashBlock) (changeF
 	}
 	defer w.Close()
 
-	header := &protocol.ChangeFileHeader{
-		Version:  1,
-		Flag:     0,
-		Domain:   file.Domain,
-		Name:     file.Name,
-		ChainIds: []uint64{newId, file.LastId, file.FirstId},
-		Author:   Self.Keys[security.Ed25519].Public,
-		Size:     uint64(stat.Size()),
+	header := &model.ChangeFileHeader{
+		Version: 1,
+		Flag:    0,
+		Domain:  file.Domain,
+		Name:    file.Name,
+		Ids:     []uint64{newId, file.Id},
+		FirstId: file.FirstId,
+		Author:  Self.Public(),
 	}
-	headerB, err := proto.Marshal(header)
+	data, err := json.Marshal(header)
 	if core.IsErr(err, "cannot serialize change file header: %v") {
 		return "", file, err
 	}
 
-	err = security.SignAndWrite(Self, headerB, w, nil)
+	err = security.SignAndWrite(Self, data, w)
 	if core.IsErr(err, "cannot sign and write the file header: %v") {
 		return "", file, err
 	}
 
-	var edits2 protocol.Edits
 	var withOffset uint32
-	for _, edit := range edits {
-		edits2.Edits = append(edits2.Edits, &protocol.Edit{
-			SliceStart: edit.Slice.Start,
-			SliceEnd:   edit.Slice.Start + edit.Slice.Length,
-			WithStart:  withOffset,
-			WithEnd:    withOffset + edit.With.Length,
-		})
+	for _, e := range edits {
+		e.With.Start = withOffset
 	}
-	edits2B, err := proto.Marshal(&edits2)
+	data2, err := json.Marshal(&edits)
 	if core.IsErr(err, "cannot serialize change file edit list: %v") {
 		return "", file, err
 	}
 
-	err = security.SignAndWrite(Self, edits2B, w, nil)
+	err = security.SignAndWrite(Self, data2, w)
 	if core.IsErr(err, "cannot sign and write the file edit list: %v") {
 		return "", file, err
 	}
@@ -113,59 +102,54 @@ func GenerateChangeFile(file model.File, sourceBlocks []algo.HashBlock) (changeF
 	}
 
 	updatedFile = file
-	updatedFile.LastId = newId
+	updatedFile.Id = newId
 	return
 }
 
-func StatChangeFile(changeFile string) (model.File, error) {
+func StatChangeFile(changeFile string) (model.ChangeFileHeader, error) {
 	subPath, err := filepath.Rel(WesharePath, changeFile)
 	if core.IsErr(err, "change file not in WeShare repo") {
-		return model.File{}, core.ErrInvalidChangeFilePath
+		return model.ChangeFileHeader{}, core.ErrInvalidChangeFilePath
 	}
 	splits := strings.Split(subPath, string(os.PathSeparator))
 	if len(splits) != 3 || splits[1] != changeFileSubfolder {
-		return model.File{}, core.ErrInvalidChangeFilePath
+		return model.ChangeFileHeader{}, core.ErrInvalidChangeFilePath
 	}
 	domain := splits[0]
-
 	f, err := os.Open(changeFile)
 	if core.IsErr(err, "cannot open change file '%s':%v", changeFile) {
-		return model.File{}, err
+		return model.ChangeFileHeader{}, err
 	}
 	defer f.Close()
+	return StatChangeFileStream(domain, changeFile, f)
+}
 
+func StatChangeFileStream(domain string, name string, f io.Reader) (model.ChangeFileHeader, error) {
+	var header model.ChangeFileHeader
 	encKeys, err := sql.GetEncKeys(domain)
 	if core.IsErr(err, "cannot get encryption keys:%v") {
-		return model.File{}, err
+		return header, err
 	}
 
-	publics, err := sql.GetUsersIdentities(domain, true, false)
+	publics, err := sql.GetUsersIdentities(domain, true)
 	if core.IsErr(err, "cannot get user ids:%v") {
-		return model.File{}, err
+		return header, err
 	}
 
 	r, err := security.EncryptedReader(encKeys, f)
-	if core.IsErr(err, "cannot decrypt file '%s':%v", changeFile) {
-		return model.File{}, err
+	if core.IsErr(err, "cannot decrypt file '%s':%v", name) {
+		return header, err
 	}
 
 	data, _, err := security.ReadAndVerify(publics, r)
-	if core.IsErr(err, "invalid header in '%s':%v", changeFile) {
-		return model.File{}, err
+	if core.IsErr(err, "invalid header in '%s':%v", name) {
+		return header, err
 	}
 
-	var header protocol.ChangeFileHeader
-	err = proto.Unmarshal(data, &header)
-	if core.IsErr(err, "cannot unmarshal header in '%s':%v", changeFile) {
-		return model.File{}, err
+	err = json.Unmarshal(data, &header)
+	if core.IsErr(err, "cannot unmarshal header in '%s':%v", name) {
+		return header, err
 	}
 
-	return model.File{
-		Domain:  header.Domain,
-		Name:    header.Name,
-		LastId:  header.ChainIds[0],
-		Hash:    header.Hash,
-		FirstId: header.ChainIds[len(header.ChainIds)-1],
-		Author:  header.Author,
-	}, nil
+	return header, nil
 }

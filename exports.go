@@ -40,7 +40,7 @@ func stop() C.Result {
 func setDomain(domainDef *C.char) *C.char {
 	data := C.GoString(domainDef)
 
-	var access model.Access
+	var access model.Transport
 	err := json.Unmarshal([]byte(data), &access)
 	if err != nil {
 		return C.CString(err.Error())

@@ -1,5 +1,5 @@
 package core
 
-const DomainFilename = "D"
-const DomainFilesign = "D.sign"
+const UsersFilename = "U"
+const UsersFilesign = "U.sign"
 const DomainFilelock = "D.lock"

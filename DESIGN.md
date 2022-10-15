@@ -1,5 +1,14 @@
 # Intro
-Weshare is a distributed secure add-only content distribution based on passive storage. It comes both as a C and Go libraries
+Weshare is a distributed secure add-only content distribution based on passive storage. It comes both as a Go and binary library. 
+
+The pillars of the technology are:
+1. Data is stored on storage, which is partitioned by domains. Users are identified by a private/public EC key
+2. Data is encrypted on with AES256. Each domain has a different password.
+2. The AES password is encrypted with the public key of each user. The encrypted password is kept in the users' file
+3. When a new user joins the domain, his identity and related encrypted password is added to the users' file. When a user is removed from a domain, a new password is generated and shared with all users except him
+4. Both users' file and changes files are valid when they are signed by a trusted user. 
+A change file that is not trusted is ignored, while a users' file that is not trusted prevents futher operations
+
 
 # Key Concepts
 
@@ -31,7 +40,7 @@ It is the sequence of changes applied to a file since its creation.
 If multiple users modify the same file, the lineage has a fork. When a fork is present, a user must choose his favorite version by downloading it. The vote 
 
 ## Access
-Data located in exchanges is subject to access control. Since exchanges cannot offer active control, the access is passive by encryption. 
+Data located in transport is subject to access control. Since transport cannot offer active control, the access is passive by encryption. 
 
 _While all clients that access a exchanger can see the content, only entitled clients can decrypt specific content_
 
@@ -57,11 +66,11 @@ For each change file:
 
 ```
   func Start() 
-  func AddDomain(domain string) error
+  func Join(token string) error
   func AddExchange(domain string, exchange json) error
   func GetPublic() string
   func ListDomains() []string
-  func State() []string
+  func State(domain string) []string
   func Watch(func handler(string))
 ```
 
@@ -87,12 +96,9 @@ Weshare
 
 # Design
 - Layer1: Storage
-- Layer2: Encryption
+- Layer2: Access
 - Layer3: Feeds
 
-A exchanger is defined by the following folders:
-- _data_: contains the exchanger content
-- _users_: contains a file for each user with his public key and 
 
 ## Local 
 Each client keeps some information locally. Most data is stored in a SQLite db.
@@ -123,18 +129,37 @@ tracks all change coming from the net
 | change | VARCHAR(16) | NOT NULL | Change file on the network |
 
 
+### TABLE Keys
+tracks all change coming from the net
+
+| Field | Type | Constraints | Description |
+|------|----|----|-----------|
+| domain | VARCHAR(128) |  | Domain |
+| thread | VARCHAR(128) |  | Full path of the file |
+| id | CHAR(64) | NOT NULL | Hash of the file |
+| value | VARCHAR(16) | NOT NULL | Change file on the network |
+
+### TABLE Identities
+Track known user and the trust level
+| Field | Type | Constraints | Description |
+|------|----|----|-----------|
+| nick | VARCHAR(128) |  | Domain |
+| identity | VARCHAR(128) |  | Domain |
+| trust | INTEGER |  | Full path of the file |
+
 
 ### TABLE Files
 links names on the file system and their hash value
 
 | Field | Type | Constraints | Description |
 |------|----|----|-----------|
+| domain | VARCHAR(8192) | NOT NULL | Domain |
+| thread | INTEGER | NOT NULL | Thread id |
 | name | VARCHAR(8192) |  | Name of the file |
 | hash | CHAR(64) | NOT NULL | Hash of the file |
-| modtime | TEXT| NOT NULL | Last modification time of the file |
-| status | CHAR(16)| NOT NULL | CREATE,UPDATE,SYNC |
-| push | BOOL | NOT NULL | True when the file is to be pushed
-| merkle | BLOB| NOT NULL | CREATE,UPDATE,SYNC |
+| id | CHAR(64) | NOT NULL | Snowflake Id |
+| modtime | INTEGER| NOT NULL | Last modification time of the file |
+
 
 
 
@@ -149,7 +174,7 @@ The invite is the way to access a domain. The invite contains one or more exchan
 |------|----|----|-----------|
 | version | uint | 16 | version of the file format, 1.0 at the moment|
 | admin | byte[32] | 32| public key of the admin that created the invite|
-| config | byte[n] | variable| exchanges configuration in json format|
+| config | byte[n] | variable| transport configuration in json format|
 
 ### Users
 
@@ -164,13 +189,14 @@ All files have a version id, which is 1.0
 
 ```
 📦public.weshare
-┣📜U.
-┃ ┣📜admins
-┃ ┣📜domain
-┃ ┣📜C.399019283
-┣ 📜README.md
-┣ 📂manual
-  ┗📜index.md
+┣📜.keys
+┃ ┣📜public
+┃ ┃ ┗1541815603606036480
+┃ ┗1629405603606036480
+┃ ┃ ┗1741815603606036938
+┣📜.tickets
+┃ ┗1744315603606036938
+┗📜index.md
 ```
 
 
