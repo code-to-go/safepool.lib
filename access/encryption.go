@@ -7,4 +7,5 @@ type Header struct {
 	Thread  uint64           `json:"t"`
 	Key     uint64           `json:"k"`
 	Hash    security.Hash256 `json:"h"`
+	Name    string           `json:"s"`
 }
