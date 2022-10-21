@@ -7,10 +7,16 @@ import (
 	"weshare/transport"
 )
 
+const TopicConfigFile = ".weshare-topic.json"
+
+type TopicConfig struct {
+	Version float32
+}
+
 type Topic struct {
-	name      string
-	transport []transport.Exchanger
-	primary   transport.Exchanger
+	name                string
+	primaryExchanger    transport.Exchanger
+	secondaryExchangers []transport.Exchanger
 }
 
 type Head struct {
@@ -22,23 +28,27 @@ type Head struct {
 }
 
 // Init initialized a domain on the specified exchangers
-func CreateTopic(topic string, transport []transport.Exchanger) (Topic, error) {
+func CreateTopic(topic string, configs []transport.Config) (Topic, error) {
 
 }
 
 // Open  connects to a domain
-func OpenTopic(topic string, transport []transport.Exchanger) (Topic, error) {
+func OpenTopic(topic string, configs []transport.Config) (Topic, error) {
 }
 
-func (t Topic) ReadTopic(after uint64) []Head {
+func (t Topic) Read(after uint64) []Head {
 
 }
 
-func Add(name string, r io.Reader) (Head, error) {
+func (t Topic) Add(name string, r io.Reader) (Head, error) {
 	return nil
 }
 
 func (t Topic) Get(id uint64, w io.Writer) error {
+	return nil
+}
+
+func (t Topic) Close() error {
 	return nil
 }
 

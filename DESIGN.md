@@ -188,20 +188,23 @@ In the below description:9,223,372,036,854,775,8
 All files have a version id, which is 1.0
 
 ```
-📦public.weshare
+📦public.weshare/main
 ┣📜.keys
-┃ ┣📜public
-┃ ┃ ┗1541815603606036480
+┃ ┣1541815603606036480
 ┃ ┗1629405603606036480
-┃ ┃ ┗1741815603606036938
-┣📜.tickets
-┃ ┗1744315603606036938
-┗📜index.md
+┗📜.weshare
 ```
 
 
-### U.x
-A user file defines the users that have current access to the domain
+### .keys
+The _.keys_ folder contain a subfolder for each thread in the domain.
+Each subfolder contains encryption files for each thread
+
+
+The subfolder _public_ contains the key for all the users of the domain. When 
+Key files are stored under the _.key_ folder.
+Each key has 
+
 
 | Field | Type | Size (bits)| Content |
 |------|----|----|-----------|

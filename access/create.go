@@ -1,9 +1,8 @@
-package engine
+package access
 
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"math"
 	"math/rand"
 	"os"
@@ -24,34 +23,15 @@ var ConnectionsMutex = &sync.Mutex{}
 
 const pingName = ".reserved.ping.%d.test"
 
-func pingExchanger(e transport.Exchanger, domain string, data []byte) (time.Duration, error) {
-	start := time.Now()
-	name := path.Join(domain, fmt.Sprintf(pingName, start.UnixMilli()))
-	err := e.Write(name, bytes.NewBuffer(data))
-	if err != nil {
-		return 0, err
-	}
+func initExchanger(topic string, c transport.Config) (transport.Exchanger, error) {
 
-	var buf bytes.Buffer
-	err = e.Read(name, nil, &buf)
-	if err != nil {
-		return 0, err
-	}
-
-	e.Delete(name)
-
-	if bytes.Compare(data, buf.Bytes()) == 0 {
-		return time.Now().Sub(start), nil
-	} else {
-		return 0, err
-	}
 }
 
-func initDomain(domain string, e transport.Exchanger) error {
-	domainFile := path.Join(domain, core.UsersFilename)
-	signFile := path.Join(domain, core.UsersFilesign)
+func initTopic(topic string, e transport.Exchanger) error {
+	domainFile := path.Join(topic, core.UsersFilename)
+	signFile := path.Join(topic, core.UsersFilesign)
 
-	err := createLock(domain, e, time.Second*30)
+	err := createLock(topic, e, time.Second*30)
 	if core.IsErr(err, "cannot create lock file") {
 		return err
 	}
@@ -61,7 +41,7 @@ func initDomain(domain string, e transport.Exchanger) error {
 		return err
 	}
 
-	err = sql.SetTrusted(domain, Self, true)
+	err = sql.SetTrusted(topic, Self, true)
 	if core.IsErr(err, "cannot add self to the trusted users: %v") {
 		return err
 	}
@@ -71,7 +51,7 @@ func initDomain(domain string, e transport.Exchanger) error {
 		return err
 	}
 
-	err = sql.SetEncKey(domain, 0, encKey)
+	err = sql.SetEncKey(topic, 0, encKey)
 	if core.IsErr(err, "cannot store symmetric encryption key to DB: %v") {
 		return err
 	}
@@ -105,7 +85,7 @@ func initDomain(domain string, e transport.Exchanger) error {
 	if core.IsErr(err, "cannot write domain file: %v") {
 		return err
 	}
-	err = removeLock(domain, e)
+	err = removeLock(topic, e)
 	if core.IsErr(err, "cannot delete lock file: %v") {
 		return err
 	}
@@ -260,3 +240,4 @@ func accessDomains() error {
 	}
 	return nil
 }
+
