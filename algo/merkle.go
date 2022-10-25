@@ -4,7 +4,6 @@ import (
 	"hash"
 	"io"
 	"os"
-	"weshare/security"
 )
 
 type MerkleTree struct {
@@ -60,7 +59,7 @@ func MerkleTreeRoot(m MerkleTree) (HashBlock, int) {
 	return m.Blocks[l], l
 }
 
-func MerkleTreeHash(m MerkleTree) *security.Hash256 {
+func MerkleTreeHash(m MerkleTree) *[]byte {
 	l := len(m.Blocks) - 1
 	return &m.Blocks[l].Hash
 }

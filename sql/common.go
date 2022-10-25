@@ -33,9 +33,9 @@ func getStatement(key string) *sql.Stmt {
 	}
 }
 
-type names map[string]any
+type Args map[string]any
 
-func named(m names) []any {
+func named(m Args) []any {
 	var args []any
 	if m != nil {
 		for k, v := range m {
@@ -45,23 +45,23 @@ func named(m names) []any {
 	return args
 }
 
-func exec(key string, m names) (sql.Result, error) {
+func Exec(key string, m Args) (sql.Result, error) {
 	return getStatement(key).Exec(named(m)...)
 }
 
-func queryRow(key string, m names) *sql.Row {
+func QueryRow(key string, m Args) *sql.Row {
 	return getStatement(key).QueryRow(named(m)...)
 }
 
-func query(key string, m names) (*sql.Rows, error) {
+func Query(key string, m Args) (*sql.Rows, error) {
 	return getStatement(key).Query(named(m)...)
 }
 
-func base64enc(data []byte) string {
+func EncodeBase64(data []byte) string {
 	return base64.StdEncoding.EncodeToString(data)
 }
 
-func base64dec(data string) []byte {
+func DecodeBase64(data string) []byte {
 	b, err := base64.StdEncoding.DecodeString(data)
 	if err != nil {
 		return nil
@@ -69,10 +69,10 @@ func base64dec(data string) []byte {
 	return b
 }
 
-func timeEnc(t time.Time) int64 {
+func EncodeTime(t time.Time) int64 {
 	return t.Unix()
 }
 
-func timeDec(v int64) time.Time {
+func DecodeTime(v int64) time.Time {
 	return time.Unix(v, 0)
 }

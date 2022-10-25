@@ -184,7 +184,7 @@ func (s *S3) Delete(name string) error {
 }
 
 func (s *S3) Close() error {
-	return s.Close()
+	return nil
 }
 
 func (s *S3) String() string {

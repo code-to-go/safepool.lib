@@ -144,7 +144,7 @@ func (s *SFTP) Delete(name string) error {
 }
 
 func (s *SFTP) Close() error {
-	return s.Close()
+	return s.c.Close()
 }
 
 func (s *SFTP) String() string {

@@ -120,10 +120,10 @@ func Join(access model.Transport) error {
 		return err
 	}
 
-	err = accessDomain(access.Domain)
-	if core.IsErr(err, "cannot access to domain %s: %v", access.Domain) {
-		return err
-	}
+	// err = accessDomain(access.Domain)
+	// if core.IsErr(err, "cannot access to domain %s: %v", access.Domain) {
+	// 	return err
+	// }
 	return nil
 }
 

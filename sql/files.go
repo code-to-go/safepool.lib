@@ -19,9 +19,9 @@ func getFiles(rows *sql.Rows) []model.File {
 		var modTime int64
 		err := rows.Scan(&file.Domain, &file.Name, &file.Id, &author, &modTime, &file.State, &hash)
 		if !core.IsErr(err, "cannot read file row from db: %v") {
-			file.ModTime = timeDec(modTime)
+			file.ModTime = DecodeTime(modTime)
 			file.Author, _ = security.IdentityFromBase64(author)
-			file.Hash = base64dec(hash)
+			file.Hash = DecodeBase64(hash)
 			files = append(files, file)
 		}
 	}
@@ -33,7 +33,7 @@ func GetFiles(domain string) ([]model.File, error) {
 	// SELECT domain, name, id, firstId, author, modTime, state, hash FROM files " +
 	// 	"WHERE domain=:domain
 
-	rows, err := query("GET_FILES", names{"domain": domain})
+	rows, err := Query("GET_FILES", Args{"domain": domain})
 	if core.IsErr(err, "cannot read file rows from db: %v") {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func GetFilesWithUpdates(domain string) ([]model.File, error) {
 	// SELECT domain,name, id, firstId, author, modTime, state, hash FROM files " +
 	// 	"WHERE domain=:domain AND state != 0
 
-	rows, err := query("GET_FILES_WITH_UPDATES", names{"domain": domain})
+	rows, err := Query("GET_FILES_WITH_UPDATES", Args{"domain": domain})
 	if core.IsErr(err, "cannot read file rows from db: %v") {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func GetFilesByFirstId(domain string, firstId uint64) ([]model.File, error) {
 	// SELECT domain,name, id, firstId, author, modTime, state, hash FROM files " +
 	// 	"WHERE domain=:domain AND firstId=:firstId
 
-	rows, err := query("GET_FILES_BY_FIRSTID", names{"domain": domain})
+	rows, err := Query("GET_FILES_BY_FIRSTID", Args{"domain": domain})
 	if core.IsErr(err, "cannot read file rows from db: %v") {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func GetFilesByFirstId(domain string, firstId uint64) ([]model.File, error) {
 }
 
 func GetFileByName(domain string, name string) (model.File, error) {
-	rows, err := query("GET_FILE_BY_NAME", names{"domain": domain, "name": name})
+	rows, err := Query("GET_FILE_BY_NAME", Args{"domain": domain, "name": name})
 	if core.IsErr(err, "cannot read file rows from db: %v") {
 		return model.File{}, err
 	}
@@ -81,7 +81,7 @@ func GetFileByName(domain string, name string) (model.File, error) {
 }
 
 func GetFilesByName(domain string, name string) ([]model.File, error) {
-	rows, err := query("GET_FILES_BY_NAME", names{"domain": domain, "name": name})
+	rows, err := Query("GET_FILES_BY_NAME", Args{"domain": domain, "name": name})
 	if core.IsErr(err, "cannot read file rows from db: %v") {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func GetFilesByName(domain string, name string) ([]model.File, error) {
 
 func GetFilesByHash(hash []byte) ([]model.File, error) {
 	//SELECT domain, name, author, modTime, state FROM files WHERE hash=:hash
-	rows, err := query("GET_FILE_BY_HASH", names{"hash": base64enc(hash)})
+	rows, err := Query("GET_FILE_BY_HASH", Args{"hash": EncodeBase64(hash)})
 	if err != nil {
 		return nil, err
 	}
@@ -100,15 +100,15 @@ func GetFilesByHash(hash []byte) ([]model.File, error) {
 
 func SetFile(file model.File) error {
 	author, _ := file.Author.Base64()
-	_, err := exec("SET_FILE", names{"domain": file.Domain, "name": file.Name,
+	_, err := Exec("SET_FILE", Args{"domain": file.Domain, "name": file.Name,
 		"firstId": file.FirstId, "lastId": file.Id,
-		"author": author, "hash": base64enc(file.Hash),
-		"modtime": timeEnc(file.ModTime), "state": file.State})
+		"author": author, "hash": EncodeBase64(file.Hash),
+		"modtime": EncodeTime(file.ModTime), "state": file.State})
 	return err
 }
 
 func GetMerkleTree(domain string, name string, author string) (tree []byte, err error) {
-	row := queryRow("GET_MERKLE_TREE", names{"domain": domain, "name": name, "author": author})
+	row := QueryRow("GET_MERKLE_TREE", Args{"domain": domain, "name": name, "author": author})
 	err = row.Scan(&tree)
 	if err != nil {
 		logrus.Errorf("get merkle")
@@ -117,6 +117,6 @@ func GetMerkleTree(domain string, name string, author string) (tree []byte, err 
 }
 
 func SetMerkleTree(domain string, name string, author string, tree []byte) error {
-	_, err := exec("SET_MERKLE_TREE", names{"name": name, "author": author, "tree": tree})
+	_, err := Exec("SET_MERKLE_TREE", Args{"name": name, "author": author, "tree": tree})
 	return err
 }

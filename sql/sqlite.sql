@@ -17,6 +17,25 @@ INSERT INTO config(domain,name,s,i,b) VALUES(:domain,:name,:s,:i,:b)
 	WHERE domain=:domain AND name=:name
 
 -- INIT
+CREATE TABLE IF NOT EXISTS heads (
+    topic VARCHAR(128) NOT NULL, 
+    id INTEGER NOT NULL,
+    name VARCHAR(8192) NOT NULL, 
+    modtime INTEGER,
+    hash VARCHAR(128) NOT NULL, 
+    CONSTRAINT pk_heads PRIMARY KEY(topic,id)
+)
+
+-- INIT
+CREATE INDEX IF NOT EXISTS idx_heads_id ON heads(id);
+
+-- GET_HEADS
+SELECT id, name, modTime, size, hash FROM heads WHERE topic=:topic AND id > :after ORDER BY id DESC LIMIT :limit
+
+-- SET_HEAD
+INSERT INTO heads(topic,id,name,modtime,hash) VALUES(:domain,:name,:firstId,:lastId,:author,:alt,:hash,:modtime,:state)
+
+-- INIT
 CREATE TABLE IF NOT EXISTS files (
     domain VARCHAR(128) NOT NULL, 
     name VARCHAR(8192) NOT NULL, 
@@ -32,6 +51,7 @@ CREATE TABLE IF NOT EXISTS files (
 
 -- INIT
 CREATE INDEX IF NOT EXISTS idx_files_modtime ON files(modtime);
+
 
 -- GET_FILES
 SELECT domain, name, id, firstId, author, modTime, state, hash FROM files " +

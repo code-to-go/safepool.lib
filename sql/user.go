@@ -9,7 +9,7 @@ import (
 
 // GetUsersIdentities returns the id (i.e. the public key) of users for a domain
 func GetUsersIdentities(domain string, active bool) ([]security.Identity, error) {
-	rows, err := query("GET_USERS_ID_BY_DOMAIN", names{"domain": domain, "active": active})
+	rows, err := Query("GET_USERS_ID_BY_DOMAIN", Args{"domain": domain, "active": active})
 	if core.IsErr(err, "cannot get users ids from db for domain '%s': %v", domain) {
 		return nil, err
 	}
@@ -20,7 +20,7 @@ func GetUsersIdentities(domain string, active bool) ([]security.Identity, error)
 		var identity security.Identity
 		err = rows.Scan(&publicKey)
 		if !core.IsErr(err, "cannot read user's public key from db: %v") {
-			data := base64dec(publicKey)
+			data := DecodeBase64(publicKey)
 			err := json.Unmarshal(data, &identity)
 			if !core.IsErr(err, "cannot unmarshal identity from db: %v") {
 				res = append(res, identity)
@@ -31,7 +31,7 @@ func GetUsersIdentities(domain string, active bool) ([]security.Identity, error)
 }
 
 func GetUsers(domain string) ([]model.User, error) {
-	rows, err := query("GET_USERS_BY_DOMAIN", names{"domain": domain})
+	rows, err := Query("GET_USERS_BY_DOMAIN", Args{"domain": domain})
 	if core.IsErr(err, "cannot get users ids from db for domain '%s': %v", domain) {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func GetUsers(domain string) ([]model.User, error) {
 		}
 
 		var identity security.Identity
-		err := json.Unmarshal(base64dec(publicKey), &identity)
+		err := json.Unmarshal(DecodeBase64(publicKey), &identity)
 		if core.IsErr(err, "cannot unmarshall identity from db: %v") {
 			continue
 		}
@@ -60,7 +60,7 @@ func GetUsers(domain string) ([]model.User, error) {
 }
 
 func GetUsersByNick(domain string, nick string, active bool) ([]model.User, error) {
-	rows, err := query("GET_USERS_BY_NICK", names{"domain": domain, "nick": nick, "active": active})
+	rows, err := Query("GET_USERS_BY_NICK", Args{"domain": domain, "nick": nick, "active": active})
 	if core.IsErr(err, "cannot get users by nick from db for domain '%s': %v", domain) {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func SetUser(domain string, user model.User) error {
 		return err
 	}
 
-	_, err = exec("SET_USER", names{"domain": domain, "identity": data, "nick": user.Identity.Nick, "active": user.Active})
+	_, err = Exec("SET_USER", Args{"domain": domain, "identity": data, "nick": user.Identity.Nick, "active": user.Active})
 	if core.IsErr(err, "cannot set user %s to db: %v", user.Identity.Nick) {
 		return err
 	}
@@ -101,7 +101,7 @@ func SetUser(domain string, user model.User) error {
 }
 
 func GetAllTrusted(domain string) ([]model.User, error) {
-	rows, err := query("GET_ALL_TRUSTED", names{"domain": domain})
+	rows, err := Query("GET_ALL_TRUSTED", Args{"domain": domain})
 	if core.IsErr(err, "cannot get users by nick from db for domain '%s': %v", domain) {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func SetTrusted(domain string, identity security.Identity, trusted bool) error {
 		return err
 	}
 
-	_, err = exec("SET_TRUSTED", names{"domain": domain, "identity": data, "trusted": trusted})
+	_, err = Exec("SET_TRUSTED", Args{"domain": domain, "identity": data, "trusted": trusted})
 	if core.IsErr(err, "cannot set trusted for user %s to db: %v", identity.Nick) {
 		return err
 	}

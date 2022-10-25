@@ -3,15 +3,11 @@ package engine
 import (
 	"bytes"
 	"path"
-	"sort"
-	"strings"
 	"time"
 	"weshare/core"
 	"weshare/model"
 	"weshare/sql"
 	"weshare/transport"
-
-	"github.com/sirupsen/logrus"
 )
 
 func readChange(e transport.Exchanger, domain string, name string, changes map[string]model.ChangeFileHeader) (model.ChangeFileHeader, error) {
@@ -25,17 +21,17 @@ func readChange(e transport.Exchanger, domain string, name string, changes map[s
 		return model.ChangeFileHeader{}, err
 	}
 
-	h, err := StatChangeFileStream(domain, name, &dest)
-	if core.IsErr(err, "cannot read header from change file '%s' from domain '%s'", name, domain) {
-		return model.ChangeFileHeader{}, err
-	}
+	// h, err := StatChangeFileStream(domain, name, &dest)
+	// if core.IsErr(err, "cannot read header from change file '%s' from domain '%s'", name, domain) {
+	// 	return model.ChangeFileHeader{}, err
+	// }
 
-	if h.Version >= 2.0 {
-		logrus.Errorf("Change file has incompatible version %f", h.Version)
-		return model.ChangeFileHeader{}, err
-	}
+	// if h.Version >= 2.0 {
+	// 	logrus.Errorf("Change file has incompatible version %f", h.Version)
+	// 	return model.ChangeFileHeader{}, err
+	// }
 
-	return h, nil
+	return model.ChangeFileHeader{}, nil
 }
 
 func processChange(e transport.Exchanger, domain string, name string, changes map[string]model.ChangeFileHeader) error {
@@ -85,31 +81,31 @@ func processChange(e transport.Exchanger, domain string, name string, changes ma
 
 func syncExchangesToDB(domain string) error {
 
-	ConnectionsMutex.Lock()
-	e := Connections[domain]
-	ConnectionsMutex.Unlock()
+	// ConnectionsMutex.Lock()
+	// e := Connections[domain]
+	// ConnectionsMutex.Unlock()
 
-	files, err := e.ReadDir(domain, 0)
-	if core.IsErr(err, "cannot read dir from exchange %v: %v", e) {
-		return err
-	}
+	// files, err := e.ReadDir(domain, 0)
+	// if core.IsErr(err, "cannot read dir from exchange %v: %v", e) {
+	// 	return err
+	// }
 
-	sort.Slice(files, func(i, j int) bool {
-		return files[i].Name() > files[j].Name()
-	})
+	// sort.Slice(files, func(i, j int) bool {
+	// 	return files[i].Name() > files[j].Name()
+	// })
 
-	changes := map[string]model.ChangeFileHeader{}
-	last, _, _, _ := sql.GetConfig(domain, e.String())
-	for _, f := range files {
-		name := f.Name()
-		if !strings.HasPrefix(name, "C.") || strings.HasSuffix(name, ".sign") || name <= last {
-			continue
-		}
-		if _, ok := changes[name]; ok {
-			continue
-		}
-		processChange(e, name, domain, changes)
-	}
+	// changes := map[string]model.ChangeFileHeader{}
+	// last, _, _, _ := sql.GetConfig(domain, e.String())
+	// for _, f := range files {
+	// 	name := f.Name()
+	// 	if !strings.HasPrefix(name, "C.") || strings.HasSuffix(name, ".sign") || name <= last {
+	// 		continue
+	// 	}
+	// 	if _, ok := changes[name]; ok {
+	// 		continue
+	// 	}
+	// 	processChange(e, name, domain, changes)
+	// }
 
 	return nil
 }

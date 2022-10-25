@@ -8,7 +8,7 @@ import (
 
 // GetChangesForExchange returns all the item in the log filtering out those smaller than start in lexical order
 func GetChangesForExchange(domain string, exchange string) ([]model.ChangeFile, error) {
-	rows, err := query("GET_CHANGES", names{"domain": domain, "exchange": exchange})
+	rows, err := Query("GET_CHANGES", Args{"domain": domain, "exchange": exchange})
 	if core.IsErr(err, "cannot get logs from db: %v") {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func GetChangesForExchange(domain string, exchange string) ([]model.ChangeFile, 
 
 // GetChange returns the change
 func GetChange(domain string, id uint64) (c model.ChangeFile, ok bool, err error) {
-	rows, err := query("GET_CHANGE", names{"domain": domain, "id": id})
+	rows, err := Query("GET_CHANGE", Args{"domain": domain, "id": id})
 	if core.IsErr(err, "cannot get logs from db: %v") {
 		return model.ChangeFile{}, false, err
 	}
@@ -64,6 +64,6 @@ func GetChange(domain string, id uint64) (c model.ChangeFile, ok bool, err error
 }
 
 func AddChange(domain string, name string) error {
-	_, err := exec("ADD_CHANGE", names{"domain": domain, "name": name, "timestamp": time.Now().Unix()})
+	_, err := Exec("ADD_CHANGE", Args{"domain": domain, "name": name, "timestamp": time.Now().Unix()})
 	return err
 }

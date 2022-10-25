@@ -1,30 +1,45 @@
 package security
 
 import (
+	"hash"
 	"io"
-	"os"
+	"weshare/core"
 
 	"golang.org/x/crypto/blake2b"
 )
 
-type Hash256 [blake2b.Size256]byte
+//type Hash256 [blake2b.Size256]byte
 
-func HashFromFile(name string) (Hash256, error) {
-	f, err := os.Open(name)
-	if err != nil {
-		return Hash256{}, err
-	}
-	return HashReader(f)
+type HashReader struct {
+	r     io.Reader
+	size  int64
+	block hash.Hash
 }
 
-func HashReader(r io.Reader) (Hash256, error) {
+func NewHashReader(r io.Reader) (HashReader, error) {
 	b, err := blake2b.New256(nil)
-	if err != nil {
-		return Hash256{}, err
+	if core.IsErr(err, "cannot create black hash: %v") {
+		return HashReader{}, err
 	}
-	_, err = io.Copy(b, r)
-	if err != nil {
-		return Hash256{}, err
+	return HashReader{
+		block: b,
+		r:     r,
+	}, nil
+}
+
+func (r HashReader) Read(p []byte) (n int, err error) {
+	n, err = r.r.Read(p)
+	if err == nil {
+		n, err = r.block.Write(p[0:n])
 	}
-	return blake2b.Sum256(nil), nil
+	r.size += int64(n)
+	return n, err
+}
+
+func (r HashReader) Hash() []byte {
+	return r.block.Sum(nil)
+}
+
+func (r HashReader) Size() int64 {
+	return r.size
 }

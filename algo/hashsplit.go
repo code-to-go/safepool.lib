@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"weshare/core"
-	"weshare/security"
 
 	"github.com/chmduquesne/rollinghash/buzhash32"
 	"golang.org/x/crypto/blake2b"
@@ -17,7 +16,7 @@ import (
 const windowSize = 32
 
 type HashBlock struct {
-	Hash   security.Hash256
+	Hash   []byte
 	Length uint32
 }
 

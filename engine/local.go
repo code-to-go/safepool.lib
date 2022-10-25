@@ -8,7 +8,6 @@ import (
 	"strings"
 	"weshare/core"
 	"weshare/model"
-	"weshare/security"
 	"weshare/sql"
 
 	"github.com/fsnotify/fsnotify"
@@ -65,7 +64,7 @@ func hasRenamed(hash []byte) (file2 model.File, ok bool) {
 	}
 }
 
-//TODO: to complete
+// TODO: to complete
 func fileHasChanged(ev fsnotify.Event) {
 	name, err := filepath.Rel(WesharePath, ev.Name)
 	if core.IsErr(err, "path '%s' is not in weshare folder: %v", ev.Name) {
@@ -80,21 +79,21 @@ func fileHasChanged(ev fsnotify.Event) {
 
 		switch ev.Op {
 		case fsnotify.Create:
-			stat, err := os.Stat(ev.Name)
-			if !core.IsErr(err, "cannot get info about created file %s: %v", ev.Name) {
-				h, err := security.HashFromFile(ev.Name)
-				if err != nil {
-					f := model.File{
-						Domain:  domain,
-						Name:    name,
-						Author:  Self,
-						ModTime: stat.ModTime(),
-						Hash:    h[:],
-						State:   model.LocalCreated,
-					}
-					core.IsErr(sql.SetFile(f), "cannot set in db '%v': %v", f)
-				}
-			}
+			// stat, err := os.Stat(ev.Name)
+			// if !core.IsErr(err, "cannot get info about created file %s: %v", ev.Name) {
+			// h, err := security.HashFromFile(ev.Name)
+			// if err != nil {
+			// 	f := model.File{
+			// 		Domain:  domain,
+			// 		Name:    name,
+			// 		Author:  Self,
+			// 		ModTime: stat.ModTime(),
+			// 		Hash:    h[:],
+			// 		State:   model.LocalCreated,
+			// 	}
+			// 	core.IsErr(sql.SetFile(f), "cannot set in db '%v': %v", f)
+			// }
+			// }
 		case fsnotify.Write:
 			f, err := sql.GetFileByName(domain, name)
 			if err != nil {
@@ -145,22 +144,22 @@ func syncLocalToDB(domain string) error {
 		fileOnlyOnDb := j < len(files2) && (i == len(files1) || files1[i].Name < files2[j].Name)
 
 		if fileOnlyOnFs {
-			f := files1[i]
-			i++
-			h, err := security.HashFromFile(filepath.Join(domainPath, f.Name))
-			if err != nil {
-				continue
-			}
-			if f2, ok := hasRenamed(h[:]); ok {
-				f2.Name = f.Name
-				f2.ModTime = f.ModTime
-				f2.State |= model.LocalRenamed
-				core.IsErr(sql.SetFile(f2), "cannot set in db '%v': %v", f2)
-			} else {
-				f.State = model.LocalCreated
-				f.Author = Self.Public()
-				core.IsErr(sql.SetFile(f), "cannot set in db '%v': %v", f)
-			}
+			// f := files1[i]
+			// i++
+			// h, err := security.HashFromFile(filepath.Join(domainPath, f.Name))
+			// if err != nil {
+			// 	continue
+			// }
+			// if f2, ok := hasRenamed(h[:]); ok {
+			// 	f2.Name = f.Name
+			// 	f2.ModTime = f.ModTime
+			// 	f2.State |= model.LocalRenamed
+			// 	core.IsErr(sql.SetFile(f2), "cannot set in db '%v': %v", f2)
+			// } else {
+			// 	f.State = model.LocalCreated
+			// 	f.Author = Self.Public()
+			// 	core.IsErr(sql.SetFile(f), "cannot set in db '%v': %v", f)
+			// }
 		} else if fileOnlyOnDb {
 			f := files2[j]
 			j++

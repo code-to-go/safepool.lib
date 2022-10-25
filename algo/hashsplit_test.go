@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
-	"weshare/security"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -44,15 +43,15 @@ func Test_Hashsplit(t *testing.T) {
 
 func Test_HashDiff(t *testing.T) {
 	a := HashBlock{
-		Hash:   security.Hash256{0},
+		Hash:   []byte{0},
 		Length: 4,
 	}
 	b := HashBlock{
-		Hash:   security.Hash256{1},
+		Hash:   []byte{1},
 		Length: 8,
 	}
 	c := HashBlock{
-		Hash:   security.Hash256{2},
+		Hash:   []byte{2},
 		Length: 8,
 	}
 
