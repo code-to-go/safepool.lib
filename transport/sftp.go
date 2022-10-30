@@ -139,6 +139,10 @@ func (s *SFTP) Stat(name string) (os.FileInfo, error) {
 	return s.c.Stat(path.Join(s.base, name))
 }
 
+func (s *SFTP) Rename(old, new string) error {
+	return s.c.Rename(path.Join(s.base, old), path.Join(s.base, new))
+}
+
 func (s *SFTP) Delete(name string) error {
 	return s.c.Remove(path.Join(s.base, name))
 }

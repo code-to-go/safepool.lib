@@ -6,10 +6,12 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"time"
 	"weshare/core"
 
+	"github.com/patrickmn/go-cache"
+
 	eciesgo "github.com/ecies/go/v2"
-	"github.com/godruoyi/go-snowflake"
 )
 
 const (
@@ -17,28 +19,28 @@ const (
 	Ed25519   = "ed25519"
 )
 
+var knownIdentities = cache.New(time.Hour, 10*time.Hour)
+
 type Key struct {
 	Public  []byte `json:"u"`
 	Private []byte `json:"r,omitempty"`
 }
 
 type Identity struct {
-	Id   uint64         `json:"i"`
-	Keys map[string]Key `json:"k"`
-	Nick string         `json:"n"`
+	Nick          string `json:"n"`
+	SignatureKey  Key    `json:"s"`
+	EncryptionKey Key    `json:"e"`
 }
 
 func NewIdentity(nick string) (Identity, error) {
 	var identity Identity
 
-	identity.Id = snowflake.ID()
 	identity.Nick = nick
 	privateCrypt, err := eciesgo.GenerateKey()
 	if core.IsErr(err, "cannot generate secp256k1 key: %v") {
 		return identity, err
 	}
-	identity.Keys = map[string]Key{}
-	identity.Keys[Secp256k1] = Key{
+	identity.EncryptionKey = Key{
 		Public:  privateCrypt.PublicKey.Bytes(true),
 		Private: privateCrypt.Bytes(),
 	}
@@ -47,39 +49,61 @@ func NewIdentity(nick string) (Identity, error) {
 	if core.IsErr(err, "cannot generate ed25519 key: %v") {
 		return identity, err
 	}
-	identity.Keys[Ed25519] = Key{
+	identity.SignatureKey = Key{
 		Public:  publicSign[:],
 		Private: privateSign[:],
 	}
 	return identity, nil
 }
 
+func (i Identity) Public() Identity {
+	return Identity{
+		Nick: i.Nick,
+		EncryptionKey: Key{
+			Public: i.EncryptionKey.Public,
+		},
+		SignatureKey: Key{
+			Public: i.SignatureKey.Public,
+		},
+	}
+}
+
+func KeyFromBase64(b64 string) (Key, error) {
+	var k Key
+	data, err := base64.StdEncoding.DecodeString(b64)
+	if core.IsErr(err, "cannot decode Key string in base64: %v") {
+		return k, err
+	}
+
+	err = json.Unmarshal(data, &k)
+	if core.IsErr(err, "cannot decode Key string from json: %v") {
+		return k, err
+	}
+	return k, nil
+
+}
+
+func (k Key) Base64() (string, error) {
+	data, err := json.Marshal(k)
+	if core.IsErr(err, "cannot marshal key: %v") {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString(data), nil
+}
+
 func IdentityFromBase64(b64 string) (Identity, error) {
-	var identity Identity
+	var i Identity
 	data, err := base64.StdEncoding.DecodeString(b64)
 	if core.IsErr(err, "cannot decode Identity string in base64: %v") {
-		return identity, err
+		return i, err
 	}
 
-	err = json.Unmarshal(data, &identity)
+	err = json.Unmarshal(data, &i)
 	if core.IsErr(err, "cannot decode Identity string from json: %v") {
-		return identity, err
+		return i, err
 	}
-	return identity, nil
-}
-
-func (i Identity) Public() Identity {
-	identity := Identity{Nick: i.Nick, Keys: map[string]Key{}}
-	for k, v := range i.Keys {
-		identity.Keys[k] = Key{
-			Public: v.Public,
-		}
-	}
-	return identity
-}
-
-func (i Identity) Primary() Key {
-	return i.Keys[Ed25519]
+	return i, nil
 }
 
 func (i Identity) Base64() (string, error) {
@@ -92,10 +116,18 @@ func (i Identity) Base64() (string, error) {
 }
 
 func SameIdentity(a, b Identity) bool {
-	for k, v := range a.Keys {
-		if bytes.Compare(b.Keys[k].Public, v.Public) == 0 {
-			return true
-		}
+	return bytes.Equal(a.SignatureKey.Public, b.SignatureKey.Public) &&
+		bytes.Equal(a.EncryptionKey.Public, b.EncryptionKey.Public)
+}
+
+func SetIdentity(i Identity) error {
+	k := string(append(i.SignatureKey.Public, i.EncryptionKey.Public...))
+	if _, found := knownIdentities.Get(k); found {
+		return nil
 	}
-	return false
+	return sqlInsertIdentity(i)
+}
+
+func Trust(i Identity, trusted bool) error {
+	return sqlSetTrust(i, trusted)
 }

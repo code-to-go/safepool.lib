@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"weshare/core"
 	"weshare/model"
-	"weshare/security"
 
 	"github.com/sirupsen/logrus"
 )
@@ -20,7 +19,7 @@ func getFiles(rows *sql.Rows) []model.File {
 		err := rows.Scan(&file.Domain, &file.Name, &file.Id, &author, &modTime, &file.State, &hash)
 		if !core.IsErr(err, "cannot read file row from db: %v") {
 			file.ModTime = DecodeTime(modTime)
-			file.Author, _ = security.IdentityFromBase64(author)
+			//			file.Author, _ = security.IdentityFromBase64(author)
 			file.Hash = DecodeBase64(hash)
 			files = append(files, file)
 		}
@@ -99,7 +98,7 @@ func GetFilesByHash(hash []byte) ([]model.File, error) {
 }
 
 func SetFile(file model.File) error {
-	author, _ := file.Author.Base64()
+	author := ""
 	_, err := Exec("SET_FILE", Args{"domain": file.Domain, "name": file.Name,
 		"firstId": file.FirstId, "lastId": file.Id,
 		"author": author, "hash": EncodeBase64(file.Hash),

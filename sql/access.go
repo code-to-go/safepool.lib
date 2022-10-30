@@ -7,8 +7,8 @@ import (
 )
 
 func GetDomains() ([]string, error) {
-	rows, err := Query("GET_DOMAINS", nil)
 	var domains []string
+	rows, err := Query("GET_DOMAINS", nil)
 	if err != nil {
 		return nil, err
 	}

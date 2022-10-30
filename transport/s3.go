@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net/url"
 	"path"
 	"strings"
 
@@ -173,6 +174,15 @@ func (s *S3) Stat(name string) (fs.FileInfo, error) {
 		isDir:   strings.HasSuffix(name, "/"),
 		modTime: *head.LastModified,
 	}, nil
+}
+
+func (s *S3) Rename(old, new string) error {
+	_, err := s.svc.CopyObject(&s3.CopyObjectInput{
+		Bucket:     &s.bucket,
+		CopySource: aws.String(url.QueryEscape(old)),
+		Key:        aws.String(new),
+	})
+	return err
 }
 
 func (s *S3) Delete(name string) error {

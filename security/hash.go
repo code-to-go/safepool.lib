@@ -16,6 +16,14 @@ type HashReader struct {
 	block hash.Hash
 }
 
+func NewHash() hash.Hash {
+	h, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+	return h
+}
+
 func NewHashReader(r io.Reader) (HashReader, error) {
 	b, err := blake2b.New256(nil)
 	if core.IsErr(err, "cannot create black hash: %v") {

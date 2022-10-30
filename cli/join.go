@@ -1,12 +1,6 @@
 package cli
 
 import (
-	"encoding/base64"
-	"encoding/json"
-	"weshare/engine"
-	"weshare/model"
-	"weshare/security"
-
 	"github.com/fatih/color"
 )
 
@@ -16,29 +10,29 @@ func processJoin(commands []string, options Options) {
 		return
 	}
 
-	token, err := base64.StdEncoding.DecodeString(commands[0])
-	if err != nil {
-		color.Red("token is not in base64 format")
-	}
+	// token, err := base64.StdEncoding.DecodeString(commands[0])
+	// if err != nil {
+	// 	color.Red("token is not in base64 format")
+	// }
 
-	signLen := token[0]
-	sign, data := token[1:signLen+1], token[signLen+1:]
+	// signLen := token[0]
+	// sign, data := token[1:signLen+1], token[signLen+1:]
 
-	var accessToken model.AccessToken
-	err = json.Unmarshal(data, &accessToken)
-	if err != nil {
-		color.Red("token is invalid")
-	}
+	// var accessToken model.AccessToken
+	// err = json.Unmarshal(data, &accessToken)
+	// if err != nil {
+	// 	color.Red("token is invalid")
+	// }
 
-	if !security.Verify(accessToken.Identity, data, sign) {
-		color.Red("invalid signature in token")
-	}
+	// if !security.Verify(accessToken.Identity, data, sign) {
+	// 	color.Red("invalid signature in token")
+	// }
 
-	err = engine.Join(accessToken.Transport)
-	if err != nil {
-		color.Red("cannot save access token: %v", err)
-		return
-	}
+	// err = engine.Join(accessToken.Transport)
+	// if err != nil {
+	// 	color.Red("cannot save access token: %v", err)
+	// 	return
+	// }
 
 	color.Green("access saved")
 }

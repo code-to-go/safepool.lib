@@ -1,9 +1,10 @@
 package model
 
 import (
-	"weshare/security"
 	"weshare/transport"
 )
+
+type Identity []byte
 
 type Access struct {
 	Domain    string
@@ -12,6 +13,7 @@ type Access struct {
 }
 
 type AccessToken struct {
-	Access   Access
-	Identity security.Identity
+	Access    Access
+	Transport Transport
+	Identity  Identity
 }

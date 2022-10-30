@@ -3,6 +3,7 @@ package transport
 import (
 	"bytes"
 	"encoding/json"
+	"hash"
 )
 
 func ReadFile(e Exchanger, name string) ([]byte, error) {
@@ -16,17 +17,24 @@ func WriteFile(e Exchanger, name string, data []byte) error {
 	return e.Write(name, b)
 }
 
-func ReadJSON(e Exchanger, name string, v any) error {
+func ReadJSON(e Exchanger, name string, v any, hash hash.Hash) error {
 	data, err := ReadFile(e, name)
 	if err == nil {
+		if hash != nil {
+			hash.Write(data)
+		}
+
 		err = json.Unmarshal(data, v)
 	}
 	return err
 }
 
-func WriteJSON(e Exchanger, name string, v any) error {
+func WriteJSON(e Exchanger, name string, v any, hash hash.Hash) error {
 	b, err := json.Marshal(v)
 	if err == nil {
+		if hash != nil {
+			hash.Write(b)
+		}
 		err = e.Write(name, bytes.NewBuffer(b))
 	}
 	return err

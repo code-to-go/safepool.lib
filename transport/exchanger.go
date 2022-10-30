@@ -42,6 +42,9 @@ type Exchanger interface {
 	// Stat provides statistics about a file
 	Stat(name string) (os.FileInfo, error)
 
+	// Rename a file. Overwrite an existing file if present
+	Rename(old, new string) error
+
 	// Delete deletes a file
 	Delete(name string) error
 

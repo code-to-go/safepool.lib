@@ -2,7 +2,6 @@ package model
 
 import (
 	"time"
-	"weshare/security"
 )
 
 // ChangeFile stores information about recent change files in different transport
@@ -21,5 +20,5 @@ type ChangeFileHeader struct {
 	Name    string
 	Ids     []uint64
 	FirstId uint64
-	Author  security.Identity
+	Author  Identity
 }

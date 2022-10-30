@@ -12,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var DbName = "weshare.db"
 var db *sql.DB
 var InitDDL string
 
@@ -47,7 +48,7 @@ func createTables() error {
 	return nil
 }
 
-//LoadSQLFromFile loads the sql queries from the provided file path. It panics in case the file cannot be loaded
+// LoadSQLFromFile loads the sql queries from the provided file path. It panics in case the file cannot be loaded
 func LoadSQLFromFile(name string) {
 	ddl, err := ioutil.ReadFile(name)
 	if err != nil {

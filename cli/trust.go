@@ -18,7 +18,7 @@ func processTrust(commands []string, options Options) {
 	identityData := commands[1]
 	identity, err := security.IdentityFromBase64(identityData)
 	if err == nil {
-		err = sql.SetTrusted(domain, identity, true)
+		//		err = sql.SetTrusted(domain, identity, true)
 		if err == nil {
 			color.Green("%s is now a trusted user", identity.Nick)
 
@@ -39,10 +39,10 @@ func processTrust(commands []string, options Options) {
 	case 0:
 		color.Red("no nick '%s' in domain '%s'", nick)
 	case 1:
-		err = sql.SetTrusted(domain, users[0].Identity, true)
-		if err != nil {
-			color.Red("internal error - cannot trust nick '%s'", nick)
-		}
+		// err = sql.SetTrusted(domain, users[0].Identity, true)
+		// if err != nil {
+		// 	color.Red("internal error - cannot trust nick '%s'", nick)
+		// }
 	default:
 		color.Red("more than one identities for nick '%s'; please use identity instead than nick")
 	}

@@ -2,7 +2,6 @@ package model
 
 import (
 	"time"
-	"weshare/security"
 )
 
 // State is the current state of a file
@@ -30,7 +29,7 @@ type File struct {
 	Name    string
 	Id      uint64
 	FirstId uint64
-	Author  security.Identity
+	Author  Identity
 	ModTime time.Time
 	Hash    []byte
 	State   State

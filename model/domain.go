@@ -1,18 +1,14 @@
 package model
 
-import (
-	"weshare/security"
-)
-
 type User struct {
-	Identity security.Identity
+	Identity Identity
 	Active   bool
 }
 
 type Domain struct {
 	Name          string
 	Snowflakeid   uint64
-	Users         []security.Identity
+	Users         []Identity
 	Key           []byte
 	EncLegacyKeys []byte
 }

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"io/ioutil"
+	"os"
 
 	"gopkg.in/yaml.v3"
 )
@@ -23,7 +23,7 @@ import (
 //}
 
 func ReadYamlFile(name string, out interface{}) error {
-	data, err := ioutil.ReadFile(name)
+	data, err := os.ReadFile(name)
 	if err != nil {
 		return err
 	}
@@ -35,5 +35,5 @@ func WriteYamlFile(name string, in interface{}) error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(name, d, 0533)
+	return os.WriteFile(name, d, 0533)
 }

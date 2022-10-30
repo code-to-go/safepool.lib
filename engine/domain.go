@@ -56,20 +56,16 @@ func initDomain(domain string, e transport.Exchanger) error {
 		return err
 	}
 
-	encKey, err := security.Generate32BytesKey()
-	if core.IsErr(err, "cannot generate symmetric encryption key: %v") {
-		return err
-	}
+	encKey := security.GenerateBytesKey(32)
+	// err = sql.SetTrusted(domain, Self, true)
+	// if core.IsErr(err, "cannot add self to the trusted users: %v") {
+	// 	return err
+	// }
 
-	err = sql.SetTrusted(domain, Self, true)
-	if core.IsErr(err, "cannot add self to the trusted users: %v") {
-		return err
-	}
-
-	encPubKey, err := security.EcEncrypt(Self, encKey)
-	if core.IsErr(err, "cannot encrypt key with asymmetric encryption: %v") {
-		return err
-	}
+	// _, err = security.EcEncrypt(Self, encKey)
+	// if core.IsErr(err, "cannot encrypt key with asymmetric encryption: %v") {
+	// 	return err
+	// }
 
 	err = sql.SetEncKey(domain, 0, encKey)
 	if core.IsErr(err, "cannot store symmetric encryption key to DB: %v") {
@@ -81,12 +77,12 @@ func initDomain(domain string, e transport.Exchanger) error {
 		GenerationId: 0,
 		Users: []model.User{
 			{
-				Identity: Self.Public(),
-				Active:   true,
+				//				Identity: Self.Public(),
+				Active: true,
 			},
 		},
 		EncKeys: map[uint64][]byte{
-			Self.Id: encPubKey,
+			//			Self.Id: encPubKey,
 		},
 	})
 	if core.IsErr(err, "cannot marshal domain file: %v") {
@@ -145,14 +141,14 @@ func validateDomain(domain string) error {
 		return err
 	}
 
-	trusted = append(trusted, model.User{Identity: Self, Active: true})
+	trusted = append(trusted, model.User{Identity: nil, Active: true})
 	valid := false
-	for _, t := range trusted {
-		if security.Verify(t.Identity, data.Bytes(), signature.Bytes()) {
-			valid = true
-			break
-		}
-	}
+	// for _, t := range trusted {
+	// 	if security.Verify(t.Identity, data.Bytes(), signature.Bytes()) {
+	// 		valid = true
+	// 		break
+	// 	}
+	// }
 
 	if !valid {
 		logrus.Warnf("user file is not signed by a trusted user")
@@ -165,33 +161,33 @@ func validateDomain(domain string) error {
 		return err
 	}
 
-	keys, err := sql.GetEncKeys(domain)
-	if core.IsErr(err, "cannot read keys from db") {
-		return err
-	}
+	// keys, err := sql.GetEncKeys(domain)
+	// if core.IsErr(err, "cannot read keys from db") {
+	// 	return err
+	// }
 
 	for _, u := range df.Users {
 		err = sql.SetUser(domain, u)
-		if core.IsErr(err, "cannot save user %s: %v", u.Identity.Nick) {
+		if core.IsErr(err, "cannot save user %s: %v", nil) {
 			return err
 		}
 	}
 
-	encKey := df.EncKeys[Self.Id]
-	if encKey == nil {
-		return core.ErrNotAuthorized
-	}
-	encKey, err = security.EcDecrypt(Self, encKey)
-	if core.IsErr(err, "cannot decrypt AES encryption key with Secp256k1 key") {
-		return err
-	}
+	// encKey := df.EncKeys[Self.Id]
+	// if encKey == nil {
+	// 	return core.ErrNotAuthorized
+	// }
+	// encKey, err = security.EcDecrypt(Self, encKey)
+	// if core.IsErr(err, "cannot decrypt AES encryption key with Secp256k1 key") {
+	// 	return err
+	// }
 
-	if _, ok := keys[df.GenerationId]; ok {
-		err = sql.SetEncKey(domain, df.GenerationId, encKey)
-		if core.IsErr(err, "cannot store AES encryption key to DB") {
-			return err
-		}
-	}
+	// if _, ok := keys[df.GenerationId]; ok {
+	// 	err = sql.SetEncKey(domain, df.GenerationId, encKey)
+	// 	if core.IsErr(err, "cannot store AES encryption key to DB") {
+	// 		return err
+	// 	}
+	// }
 
 	return nil
 }

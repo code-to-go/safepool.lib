@@ -9,6 +9,7 @@ import (
 )
 
 var stmtCache = map[string]*sql.Stmt{}
+var ErrNoRows = sql.ErrNoRows
 
 func prepareStatement(key, s string) {
 	if _, ok := stmtCache[key]; ok {

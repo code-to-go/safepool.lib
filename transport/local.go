@@ -92,6 +92,10 @@ func (l *Local) Stat(name string) (os.FileInfo, error) {
 	return os.Stat(path.Join(l.base, name))
 }
 
+func (l *Local) Rename(old, new string) error {
+	return os.Rename(path.Join(l.base, old), path.Join(l.base, new))
+}
+
 func (l *Local) Delete(name string) error {
 	return os.Remove(path.Join(l.base, name))
 }

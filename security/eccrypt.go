@@ -7,7 +7,7 @@ import (
 )
 
 func EcEncrypt(identity Identity, data []byte) ([]byte, error) {
-	pk, err := eciesgo.NewPublicKeyFromBytes(identity.Keys[Secp256k1].Public)
+	pk, err := eciesgo.NewPublicKeyFromBytes(identity.EncryptionKey.Public)
 	if core.IsErr(err, "cannot convert bytes to secp256k1 public key: %v") {
 		return nil, err
 	}
@@ -19,7 +19,7 @@ func EcEncrypt(identity Identity, data []byte) ([]byte, error) {
 }
 
 func EcDecrypt(identity Identity, data []byte) ([]byte, error) {
-	data, err := eciesgo.Decrypt(eciesgo.NewPrivateKeyFromBytes(identity.Keys[Secp256k1].Private), data)
+	data, err := eciesgo.Decrypt(eciesgo.NewPrivateKeyFromBytes(identity.EncryptionKey.Private), data)
 	if core.IsErr(err, "cannot decrypt with secp256k1: %v") {
 		return nil, err
 	}

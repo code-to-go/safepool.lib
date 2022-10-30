@@ -40,7 +40,7 @@ func Init(nick string, wesharePath string) (security.Identity, error) {
 		return identity, err
 	}
 
-	err = sql.SetConfig("", wesharePathKey, WesharePath, 0, nil)
+	err = sqlSetConfig("", wesharePathKey, WesharePath, 0, nil)
 	if core.IsErr(err, "cannot store weshare path to db: %v", WesharePath) {
 		return identity, err
 	}
@@ -55,7 +55,7 @@ func Init(nick string, wesharePath string) (security.Identity, error) {
 		return identity, err
 	}
 
-	err = sql.SetConfig("", "identity", "", 0, data)
+	err = sqlSetConfig("", "identity", "", 0, data)
 	if core.IsErr(err, "cannot store identity to DB: %v") {
 		return identity, err
 	}
@@ -77,7 +77,7 @@ func Start() error {
 
 	// load or set weshare path
 	var ok bool
-	WesharePath, _, _, ok = sql.GetConfig("", wesharePathKey)
+	WesharePath, _, _, ok = sqlGetConfig("", wesharePathKey)
 	if !ok {
 		return core.ErrNotInitialized
 	}
@@ -86,7 +86,7 @@ func Start() error {
 }
 
 func loadIdentity() error {
-	_, _, data, ok := sql.GetConfig("", "identity")
+	_, _, data, ok := sqlGetConfig("", "identity")
 	if !ok {
 		return core.ErrNotInitialized
 	}
