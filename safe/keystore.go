@@ -14,24 +14,24 @@ type Keystore map[uint64][]byte
 
 var cachedEncKeys = cache.New(time.Hour, 10*time.Hour)
 
-func (s *Safe) importKeystore(a AccessFile) error {
+func (s *Safe) importKeystore(a AccessFile) (Keystore, error) {
 	masterKey := s.keyFunc(s.masterKeyId)
 	if masterKey == nil {
-		return ErrNotAuthorized
+		return nil, ErrNotAuthorized
 	}
 
 	ks, err := s.unmarshalKeystore(masterKey, a.Nonce, a.Keystore)
 	if core.IsErr(err, "cannot unmarshal keystore for safe '%s': %v", s.Name) {
-		return err
+		return nil, err
 	}
 
 	for id, val := range ks {
 		err = s.sqlSetKey(id, val)
 		if core.IsErr(err, "cannot set key %d to DB for safe '%s': %v", id, s.Name) {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return ks, nil
 }
 
 func (s *Safe) marshalKeystore(masterKey []byte, nonce []byte, ks Keystore) ([]byte, error) {

@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"weshare/core"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -53,15 +54,19 @@ func getAWSConfig(c S3Config) *aws.Config {
 }
 
 func NewS3(c S3Config) (Exchanger, error) {
-	sess := session.New(getAWSConfig(c))
 	url := fmt.Sprintf("s3://%s@%s/%s#region-%s", c.AccessKey, c.Endpoint, c.Bucket, c.Region)
+	sess, err := session.NewSession(getAWSConfig(c))
+	if core.IsErr(err, "cannot create S3 session for %s:%v", url) {
+		return nil, err
+	}
+
 	s := &S3{
 		uploader: s3manager.NewUploader(sess),
 		svc:      s3.New(sess),
 		url:      url,
 		bucket:   c.Bucket,
 	}
-	err := s.createBucketIfNeeded()
+	err = s.createBucketIfNeeded()
 	return s, err
 }
 
@@ -122,6 +127,10 @@ func (s *S3) Write(name string, source io.Reader) error {
 }
 
 func (s *S3) ReadDir(prefix string, opts ListOption) ([]fs.FileInfo, error) {
+	if prefix != "" && opts&IsPrefix == 0 {
+		prefix += "/"
+	}
+
 	input := &s3.ListObjectsInput{
 		Bucket:    aws.String(s.bucket),
 		Prefix:    aws.String(prefix),
@@ -130,7 +139,7 @@ func (s *S3) ReadDir(prefix string, opts ListOption) ([]fs.FileInfo, error) {
 
 	result, err := s.svc.ListObjects(input)
 	if err != nil {
-		logrus.Errorf("cannot write %s/%s: %v", s.String(), prefix, err)
+		logrus.Errorf("cannot list %s/%s: %v", s.String(), prefix, err)
 		return nil, err
 	}
 
@@ -186,10 +195,31 @@ func (s *S3) Rename(old, new string) error {
 }
 
 func (s *S3) Delete(name string) error {
-	_, err := s.svc.DeleteObject(&s3.DeleteObjectInput{
-		Bucket: &s.bucket,
-		Key:    &name,
-	})
+	input := &s3.ListObjectsInput{
+		Bucket:    aws.String(s.bucket),
+		Prefix:    aws.String(name + "/"),
+		Delimiter: aws.String("/"),
+	}
+
+	result, err := s.svc.ListObjects(input)
+	if err == nil && len(result.Contents) > 0 {
+		for _, item := range result.Contents {
+			_, err = s.svc.DeleteObject(&s3.DeleteObjectInput{
+				Bucket: &s.bucket,
+				Key:    item.Key,
+			})
+			if core.IsErr(err, "cannot delete %s: %v", item.Key) {
+				return err
+			}
+		}
+	} else {
+		_, err = s.svc.DeleteObject(&s3.DeleteObjectInput{
+			Bucket: &s.bucket,
+			Key:    &name,
+		})
+	}
+
+	core.IsErr(err, "cannot delete %s: %v", name)
 	return err
 }
 

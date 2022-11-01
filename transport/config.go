@@ -1,7 +1,7 @@
 package transport
 
 import (
-	"io/ioutil"
+	"os"
 
 	"gopkg.in/yaml.v3"
 )
@@ -14,7 +14,7 @@ type Config struct {
 
 func ReadConfig(name string) (Config, error) {
 	var c Config
-	data, err := ioutil.ReadFile(name)
+	data, err := os.ReadFile(name)
 	if err != nil {
 		return c, err
 	}

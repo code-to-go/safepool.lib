@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS heads (
 CREATE INDEX IF NOT EXISTS idx_heads_id ON heads(id);
 
 -- GET_HEADS
-SELECT id, name, modtime, size, hash FROM heads WHERE safe=:safe AND id > :after ORDER BY id DESC LIMIT :limit
+SELECT id, name, modtime, size, hash FROM heads WHERE safe=:safe AND id > :after ORDER BY id
 
 -- SET_HEAD
 INSERT INTO heads(safe,id,name,modtime,size,hash) VALUES(:safe,:id,:name,:modtime,:size,:hash)
@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS safe_identity (
     safe VARCHAR(128),
     signatureKey VARCHAR(128),
     encryptionKey VARCHAR(128),
+    since INTEGER,
     CONSTRAINT pk_safe_sig_enc PRIMARY KEY(safe,signatureKey,encryptionKey)
 );
 
@@ -95,11 +96,11 @@ CREATE TABLE IF NOT EXISTS safe_identity (
 SELECT i.signatureKey, i.encryptionKey,nick FROM identity i INNER JOIN safe_identity s WHERE s.safe=:safe AND i.signatureKey = s.signatureKey AND i.trusted
 
 -- GET_IDENTITY_ON_SAFE
-SELECT i.signatureKey, i.encryptionKey,nick FROM identity i INNER JOIN safe_identity s WHERE s.safe=:safe AND i.signatureKey = s.signatureKey
+SELECT i.signatureKey, i.encryptionKey,nick,since FROM identity i INNER JOIN safe_identity s WHERE s.safe=:safe AND i.signatureKey = s.signatureKey
 
 -- SET_IDENTITY_ON_SAFE
-INSERT INTO safe_identity(signatureKey,encryptionKey,safe) VALUES(:signatureKey,:encryptionKey,:safe)
+INSERT INTO safe_identity(signatureKey,encryptionKey,since,safe) VALUES(:signatureKey,:encryptionKey,:since,:safe)
     ON CONFLICT(signatureKey,encryptionKey,safe) DO NOTHING
 
--- DET_IDENTITY_ON_SAFE
+-- DEL_IDENTITY_ON_SAFE
 DELETE FROM safe_identity WHERE signatureKey=:signatureKey AND encryptionKey=:encryptionKey AND safe=:safe

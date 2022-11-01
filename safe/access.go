@@ -1,14 +1,16 @@
 package safe
 
 import (
+	"bytes"
 	"crypto/aes"
+	"hash"
 	"path"
 	"time"
 	"weshare/core"
 	"weshare/security"
 	"weshare/transport"
 
-	"github.com/patrickmn/go-cache"
+	"github.com/godruoyi/go-snowflake"
 )
 
 type Grant struct {
@@ -25,29 +27,44 @@ type AccessFile struct {
 	Keystore    []byte
 }
 
-var knownIdentities = cache.New(time.Hour, 10*time.Hour)
+func (s *Safe) ImportAccess(e transport.Exchanger) (hash.Hash, error) {
+	l, err := s.lockAccessFile(e)
+	if core.IsErr(err, "cannot lock access on %s: %v", s.e) {
+		return nil, err
+	}
+	defer s.unlockAccessFile(e, l)
 
-func (s *Safe) ImportAccess() error {
-	a, err := s.readAccessFile()
+	a, h, err := s.readAccessFile(e)
 	if core.IsErr(err, "cannot read access file:%v") {
-		return err
+		return nil, err
+	}
+	if bytes.Equal(h.Sum(nil), s.accessHash) {
+		return h, nil
 	}
 
-	s.masterKeyId = a.MasterKeyId
-	err = s.importGrants(a)
-	if core.IsErr(err, "cannot sync grants: %v") {
-		return err
-	}
-	err = s.importKeystore(a)
-	if core.IsErr(err, "cannot sync grants: %v") {
-		return err
+	if s.masterKeyId != a.MasterKeyId {
+		err = s.importMasterKey(a)
+		if core.IsErr(err, "cannot import master key: %v") {
+			return nil, err
+		}
 	}
 
-	return nil
+	ks, err := s.importKeystore(a)
+	if core.IsErr(err, "cannot sync grants: %v") {
+		return nil, err
+	}
+
+	err = s.importGrants(a, ks)
+	if core.IsErr(err, "cannot sync grants: %v") {
+		return nil, err
+	}
+
+	s.accessHash = h.Sum(nil)
+	return h, nil
 }
 
-func (s *Safe) ExportAccessFile() error {
-	identities, err := s.sqlGetIdentities(false)
+func (s *Safe) ExportAccessFile(e transport.Exchanger) error {
+	identities, _, err := s.sqlGetIdentities(false)
 	if core.IsErr(err, "cannot get identities for safe '%s':%v", s.Name) {
 		return err
 	}
@@ -84,99 +101,151 @@ func (s *Safe) ExportAccessFile() error {
 		Keystore:    cipherks,
 	}
 
-	return s.writeAccessFile(a)
+	l, err := s.lockAccessFile(s.e)
+	if core.IsErr(err, "cannot lock access on %s: %v", s.e) {
+		return err
+	}
+	defer s.unlockAccessFile(e, l)
+	_, err = s.writeAccessFile(e, a)
+	return err
 }
 
-func (s *Safe) importGrants(a AccessFile) error {
+func (s *Safe) importMasterKey(a AccessFile) error {
 	for _, g := range a.Grants {
-		i := g.Identity
-		k := s.Name + string(append(i.SignatureKey.Public, i.EncryptionKey.Public...))
-		if _, found := knownIdentities.Get(k); !found {
-			err := security.SetIdentity(i)
-			if !core.IsErr(err, "cannot add identity %s: %v", g.Identity.Nick) {
-				s.sqlSetIdentity(i)
-			}
-		}
-		if security.SameIdentity(s.self, i) {
+		if security.SameIdentity(s.self, g.Identity) {
 			masterKey, err := security.EcDecrypt(s.self, g.KeystoreKey)
 			if !core.IsErr(err, "corrupted master key in access grant: %v", err) {
-				s.sqlSetKey(a.MasterKeyId, masterKey)
+				err = s.sqlSetKey(a.MasterKeyId, masterKey)
+				if core.IsErr(err, "cannot write master key to db: %v", err) {
+					return err
+				}
 			}
 		}
 	}
+	s.masterKeyId = a.MasterKeyId
 	return nil
 }
 
-func (s *Safe) readAccessFile() (AccessFile, error) {
+func (s *Safe) importGrants(a AccessFile, ks Keystore) error {
+	identities, sinces, err := s.sqlGetIdentities(false)
+	if core.IsErr(err, "cannot read identities during grant import: %v", err) {
+		return err
+	}
+	is := map[string]int{}
+	for idx, i := range identities {
+		k := string(append(i.SignatureKey.Public, i.EncryptionKey.Public...))
+		is[k] = idx
+	}
+
+	for _, g := range a.Grants {
+		i := g.Identity
+		k := string(append(i.SignatureKey.Public, i.EncryptionKey.Public...))
+		if _, found := is[k]; !found {
+			err := security.SetIdentity(i)
+			if !core.IsErr(err, "cannot add identity %s: %v", g.Identity.Nick) {
+				s.sqlSetIdentity(i, g.Since)
+			}
+			delete(is, k)
+		}
+	}
+
+	needNewMasterKey := false
+	for _, idx := range is {
+		since := sinces[idx]
+		if _, ok := ks[since]; ok {
+			s.sqlDeleteIdentity(identities[idx])
+			needNewMasterKey = true
+		}
+	}
+	if needNewMasterKey {
+		s.masterKeyId = snowflake.ID()
+		s.masterKey = security.GenerateBytesKey(32)
+		err = s.sqlSetKey(s.masterKeyId, s.masterKey)
+		if core.IsErr(err, "çannot store master encryption key to db: %v") {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *Safe) lockAccessFile(e transport.Exchanger) (uint64, error) {
+	lockFile := path.Join(s.Name, ".access.lock")
+	lockId, err := transport.LockFile(e, lockFile, time.Minute)
+	core.IsErr(err, "cannot lock access on %s: %v", s.Name, err)
+	return lockId, err
+}
+
+func (s *Safe) unlockAccessFile(e transport.Exchanger, lockId uint64) {
+	lockFile := path.Join(s.Name, ".access.lock")
+	transport.UnlockFile(e, lockFile, lockId)
+}
+
+func (s *Safe) readAccessFile(e transport.Exchanger) (AccessFile, hash.Hash, error) {
 	var a AccessFile
 	var sh security.SignedHash
-	lockFile := path.Join(s.Name, ".access.lock")
 	signatureFile := path.Join(s.Name, ".access.sign")
 	accessFile := path.Join(s.Name, ".access")
-	e := s.e
 
 	err := transport.ReadJSON(e, signatureFile, &sh, nil)
 	if core.IsErr(err, "cannot read signature file '%s': %v", signatureFile, err) {
-		return AccessFile{}, err
+		return AccessFile{}, nil, err
 	}
 
 	h := security.NewHash()
 	err = transport.ReadJSON(e, accessFile, &a, h)
 	if core.IsErr(err, "cannot read access file: %s", err) {
-		return AccessFile{}, err
+		return AccessFile{}, nil, err
 	}
 
 	if security.VerifySignedHash(sh, []security.Identity{s.self}, h.Sum(nil)) {
-		return a, nil
+		return a, h, nil
 	}
 
-	trusted, err := s.sqlGetIdentities(true)
+	trusted, _, err := s.sqlGetIdentities(true)
 	if core.IsErr(err, "cannot get trusted identities: %v") {
-		return AccessFile{}, nil
+		return AccessFile{}, nil, nil
 	}
 	if !security.VerifySignedHash(sh, trusted, h.Sum(nil)) {
-		return AccessFile{}, ErrNotTrusted
+		return AccessFile{}, nil, ErrNotTrusted
 	}
 
 	_ = security.AppendToSignedHash(sh, s.self)
-	lockId, err := transport.LockFile(e, lockFile, time.Minute)
 	if !core.IsErr(err, "cannot lock access on %s: %v", s.Name, err) {
-		defer transport.UnlockFile(e, lockFile, lockId)
 		if security.AppendToSignedHash(sh, s.self) == nil {
 			err = transport.WriteJSON(e, signatureFile, sh, nil)
 			core.IsErr(err, "cannot write signature file on %s: %v", s.Name, err)
 		}
 	}
 
-	return a, nil
+	return a, h, nil
 }
 
-func (s *Safe) writeAccessFile(a AccessFile) error {
+func (s *Safe) writeAccessFile(e transport.Exchanger, a AccessFile) (hash.Hash, error) {
 	lockFile := path.Join(s.Name, ".access.lock")
 	signatureFile := path.Join(s.Name, ".access.sign")
 	accessFile := path.Join(s.Name, ".access")
 
-	e := s.e
 	lockId, err := transport.LockFile(e, lockFile, time.Minute)
 	if core.IsErr(err, "cannot lock access on %s: %v", s.Name, err) {
-		return err
+		return nil, err
 	}
 	defer transport.UnlockFile(e, lockFile, lockId)
 
 	h := security.NewHash()
 	err = transport.WriteJSON(e, accessFile, a, h)
 	if core.IsErr(err, "cannot write access file on %s: %v", s.Name, err) {
-		return err
+		return nil, err
 	}
 
 	sh, err := security.NewSignedHash(h.Sum(nil), s.self)
 	if core.IsErr(err, "cannot generate signature hash on %s: %v", s.Name, err) {
-		return err
+		return nil, err
 	}
 	err = transport.WriteJSON(e, signatureFile, sh, nil)
 	if core.IsErr(err, "cannot write signature file on %s: %v", s.Name, err) {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return h, nil
 }

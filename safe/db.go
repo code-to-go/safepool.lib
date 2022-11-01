@@ -6,12 +6,12 @@ import (
 	"weshare/sql"
 )
 
-func sqlGetHeads(safe string, after uint64, limit int) ([]Head, error) {
-	//GET_HEADS: SELECT id, name, modTime, size, hash FROM SafeHeads ORDER BY id DESC LIMIT :limit
-	rows, err := sql.Query("GET_HEADS", sql.Args{"safe": safe, "after": after, "limit": limit})
+func sqlGetHeads(safe string, after uint64) ([]Head, error) {
+	rows, err := sql.Query("GET_HEADS", sql.Args{"safe": safe, "after": after})
 	if core.IsErr(err, "cannot get safes heads from db: %v") {
 		return nil, err
 	}
+	defer rows.Close()
 
 	var heads []Head
 	for rows.Next() {
@@ -29,8 +29,7 @@ func sqlGetHeads(safe string, after uint64, limit int) ([]Head, error) {
 }
 
 func sqlAddHead(safe string, h Head) error {
-	//ADD_HEAD: INSERT
-	_, err := sql.Exec("ADD_HEAD", sql.Args{
+	_, err := sql.Exec("SET_HEAD", sql.Args{
 		"safe":    safe,
 		"id":      h.Id,
 		"name":    h.Name,
@@ -46,6 +45,8 @@ func (s *Safe) sqlGetKey(keyId uint64) []byte {
 	if err != nil {
 		return nil
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		var key string
 		var err = rows.Scan(&key)
@@ -66,6 +67,8 @@ func (s *Safe) sqlGetKeystore() (Keystore, error) {
 	if core.IsErr(err, "cannot read keystore for safe %s: %v", s.Name) {
 		return nil, err
 	}
+	defer rows.Close()
+
 	ks := Keystore{}
 	for rows.Next() {
 		var keyId uint64
@@ -78,7 +81,7 @@ func (s *Safe) sqlGetKeystore() (Keystore, error) {
 	return ks, nil
 }
 
-func (s *Safe) sqlGetIdentities(onlyTrusted bool) ([]security.Identity, error) {
+func (s *Safe) sqlGetIdentities(onlyTrusted bool) (identities []security.Identity, sinces []uint64, err error) {
 	var q string
 	if onlyTrusted {
 		q = "GET_TRUSTED_ON_SAFE"
@@ -88,33 +91,48 @@ func (s *Safe) sqlGetIdentities(onlyTrusted bool) ([]security.Identity, error) {
 
 	rows, err := sql.Query(q, sql.Args{"safe": s.Name})
 	if core.IsErr(err, "cannot get trusted identities from db: %v") {
-		return nil, err
+		return nil, nil, err
 	}
+	defer rows.Close()
 
-	var is []security.Identity
 	for rows.Next() {
 		var encryptionKey, signatureKey, nick string
-		err = rows.Scan(&signatureKey, &encryptionKey, &nick)
+		var since uint64
+		err = rows.Scan(&signatureKey, &encryptionKey, &nick, &since)
 		if core.IsErr(err, "cannot read identity from db: %v") {
 			continue
 		}
 
 		ek, _ := security.KeyFromBase64(encryptionKey)
 		sk, _ := security.KeyFromBase64(signatureKey)
-		is = append(is, security.Identity{
+		identities = append(identities, security.Identity{
 			Nick:          nick,
 			SignatureKey:  sk,
 			EncryptionKey: ek,
 		})
+		sinces = append(sinces, since)
 	}
-	return is, nil
+	return identities, sinces, nil
 }
 
-func (s *Safe) sqlSetIdentity(i security.Identity) error {
+func (s *Safe) sqlSetIdentity(i security.Identity, since uint64) error {
 	sk, _ := i.SignatureKey.Base64()
 	ek, _ := i.EncryptionKey.Base64()
 
 	_, err := sql.Exec("SET_IDENTITY_ON_SAFE", sql.Args{
+		"signatureKey":  sk,
+		"encryptionKey": ek,
+		"safe":          s.Name,
+		"since":         since,
+	})
+	return err
+}
+
+func (s *Safe) sqlDeleteIdentity(i security.Identity) error {
+	sk, _ := i.SignatureKey.Base64()
+	ek, _ := i.EncryptionKey.Base64()
+
+	_, err := sql.Exec("DEL_IDENTITY_ON_SAFE", sql.Args{
 		"signatureKey":  sk,
 		"encryptionKey": ek,
 		"safe":          s.Name,

@@ -21,6 +21,8 @@ type ListOption uint32
 const (
 	// IncludeHiddenFiles includes hidden files in a list operation
 	IncludeHiddenFiles ListOption = 1
+	// IsPrefix matches all the files starting with the path
+	IsPrefix = 2
 )
 
 type Range struct {

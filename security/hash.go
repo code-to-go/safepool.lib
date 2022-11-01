@@ -3,6 +3,7 @@ package security
 import (
 	"hash"
 	"io"
+	"os"
 	"weshare/core"
 
 	"golang.org/x/crypto/blake2b"
@@ -10,8 +11,9 @@ import (
 
 //type Hash256 [blake2b.Size256]byte
 
-type HashReader struct {
+type HashStream struct {
 	r     io.Reader
+	w     io.Writer
 	size  int64
 	block hash.Hash
 }
@@ -24,30 +26,48 @@ func NewHash() hash.Hash {
 	return h
 }
 
-func NewHashReader(r io.Reader) (HashReader, error) {
+func NewHashStream(r io.Reader, w io.Writer) (*HashStream, error) {
 	b, err := blake2b.New256(nil)
 	if core.IsErr(err, "cannot create black hash: %v") {
-		return HashReader{}, err
+		return nil, err
 	}
-	return HashReader{
+	return &HashStream{
 		block: b,
 		r:     r,
+		w:     w,
 	}, nil
 }
 
-func (r HashReader) Read(p []byte) (n int, err error) {
-	n, err = r.r.Read(p)
-	if err == nil {
-		n, err = r.block.Write(p[0:n])
+func (s *HashStream) Read(p []byte) (n int, err error) {
+	if s.r == nil {
+		return 0, os.ErrClosed
 	}
-	r.size += int64(n)
+
+	n, err = s.r.Read(p)
+	if err == nil && n > 0 {
+		_, err = s.block.Write(p[0:n])
+	}
+	s.size += int64(n)
 	return n, err
 }
 
-func (r HashReader) Hash() []byte {
-	return r.block.Sum(nil)
+func (s *HashStream) Write(p []byte) (n int, err error) {
+	if s.w == nil {
+		return 0, os.ErrClosed
+	}
+
+	n, err = s.w.Write(p)
+	if err == nil && n > 0 {
+		_, err = s.block.Write(p[0:n])
+	}
+	s.size += int64(n)
+	return n, err
 }
 
-func (r HashReader) Size() int64 {
-	return r.size
+func (s *HashStream) Hash() []byte {
+	return s.block.Sum(nil)
+}
+
+func (s *HashStream) Size() int64 {
+	return s.size
 }

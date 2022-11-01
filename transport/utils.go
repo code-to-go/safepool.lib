@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"hash"
+	"io"
 )
 
 func ReadFile(e Exchanger, name string) ([]byte, error) {
@@ -38,4 +39,22 @@ func WriteJSON(e Exchanger, name string, v any, hash hash.Hash) error {
 		err = e.Write(name, bytes.NewBuffer(b))
 	}
 	return err
+}
+
+func CopyFile(dest Exchanger, destName string, source Exchanger, sourceName string) error {
+	pr, pw := io.Pipe()
+	defer pr.Close()
+	var err error
+	go func() {
+		err = source.Read(sourceName, nil, pw)
+		pw.Close()
+	}()
+
+	err2 := dest.Write(destName, pr)
+	if err != nil {
+		return err
+	} else {
+		return err2
+	}
+
 }

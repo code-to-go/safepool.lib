@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
+
 	"os"
 	"path"
 	"path/filepath"
@@ -42,7 +42,7 @@ func NewSFTP(config SFTPConfig) (Exchanger, error) {
 		url = fmt.Sprintf("sftp://%s@%s/%s", config.Username, config.Addr, config.Base)
 	}
 	if config.KeyPath != "" {
-		key, err := ioutil.ReadFile(config.KeyPath)
+		key, err := os.ReadFile(config.KeyPath)
 		if err != nil {
 			return nil, fmt.Errorf("cannot load key file %s: %v", config.KeyPath, err)
 		}

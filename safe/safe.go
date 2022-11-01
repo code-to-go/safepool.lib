@@ -35,6 +35,8 @@ type Safe struct {
 	exchangers  []transport.Exchanger
 	masterKeyId uint64
 	masterKey   []byte
+	ticker      *time.Ticker
+	accessHash  []byte
 }
 
 type Head struct {
@@ -53,6 +55,7 @@ const (
 )
 
 var ForceCreation = false
+var ReplicaPeriod = time.Minute
 
 func CreateSafe(self security.Identity, name string, configs []transport.Config) (Safe, error) {
 	s := Safe{
@@ -75,12 +78,27 @@ func CreateSafe(self security.Identity, name string, configs []transport.Config)
 		return s, err
 	}
 
-	err = s.sqlSetIdentity(self)
+	err = s.sqlSetIdentity(self, s.masterKeyId)
 	if core.IsErr(err, "çannot link identity to save: %v") {
 		return s, err
 	}
 
-	err = s.ExportAccessFile()
+	if !ForceCreation {
+		_, err = s.e.Stat(path.Join(s.Name, ".access"))
+		if err == nil {
+			return Safe{}, ErrNotAuthorized
+		}
+	}
+
+	err = s.ExportAccessFile(s.e)
+	if core.IsErr(err, "cannot export access file: %v") {
+		return Safe{}, err
+	}
+
+	if ReplicaPeriod > 0 {
+		s.ticker = time.NewTicker(ReplicaPeriod)
+		go s.replica()
+	}
 	return s, err
 }
 
@@ -95,14 +113,13 @@ func OpenSafe(self security.Identity, name string, configs []transport.Config) (
 		return Safe{}, err
 	}
 
-	err = s.ImportAccess()
+	_, err = s.ImportAccess(s.e)
 	return s, err
 }
 
 func (s Safe) List(after uint64) []Head {
-	s.refresh()
-
-	return nil
+	hs, _ := s.list(after)
+	return hs
 }
 
 func (s Safe) Post(name string, r io.Reader) (Head, error) {
@@ -113,7 +130,8 @@ func (s Safe) Post(name string, r io.Reader) (Head, error) {
 		return Head{}, err
 	}
 
-	signature, err := security.Sign(s.self, hr.Hash())
+	hash := hr.Hash()
+	signature, err := security.Sign(s.self, hash)
 	if core.IsErr(err, "cannot sign file %s.body in %s: %v", name, s.e) {
 		return Head{}, err
 	}
@@ -121,9 +139,9 @@ func (s Safe) Post(name string, r io.Reader) (Head, error) {
 		Id:        id,
 		Name:      name,
 		Size:      hr.Size(),
-		Hash:      hr.Hash(),
+		Hash:      hash,
 		ModTime:   time.Now(),
-		Author:    s.self,
+		Author:    s.self.Public(),
 		Signature: signature,
 	}
 	data, err := json.Marshal(h)
@@ -139,12 +157,31 @@ func (s Safe) Post(name string, r io.Reader) (Head, error) {
 }
 
 func (s Safe) Get(id uint64, w io.Writer) error {
+	headName := path.Join(s.Name, fmt.Sprintf("%d.head", id))
+	bodyName := path.Join(s.Name, fmt.Sprintf("%d.body", id))
+
+	h, err := s.readHead(headName)
+	if core.IsErr(err, "cannot read header '%s': %v") {
+		return err
+	}
+
+	hr, err := s.readFile(bodyName, w)
+	if core.IsErr(err, "cannot read body '%s': %v", bodyName) {
+		return err
+	}
+	hash := hr.Hash()
+	if !bytes.Equal(hash, h.Hash) {
+		return ErrInvalidSignature
+	}
 	return nil
 }
 
 func (s Safe) Close() {
 	for _, e := range s.exchangers {
 		_ = e.Close()
+	}
+	if s.ticker != nil {
+		s.ticker.Stop()
 	}
 }
 
@@ -159,5 +196,6 @@ func (s Safe) Delete() error {
 }
 
 func (s Safe) Identities() ([]security.Identity, error) {
-	return s.sqlGetIdentities(false)
+	identities, _, err := s.sqlGetIdentities(false)
+	return identities, err
 }

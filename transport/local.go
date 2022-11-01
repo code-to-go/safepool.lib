@@ -3,9 +3,9 @@ package transport
 import (
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"weshare/core"
 )
@@ -59,8 +59,18 @@ func (l *Local) Read(name string, rang *Range, dest io.Writer) error {
 	return nil
 }
 
+func createDir(n string) error {
+	return os.MkdirAll(filepath.Dir(n), 0755)
+}
+
 func (l *Local) Write(name string, source io.Reader) error {
-	f, err := os.Create(path.Join(l.base, name))
+	n := filepath.Join(l.base, name)
+	err := createDir(n)
+	if core.IsErr(err, "cannot create parent of %s: %v", n) {
+		return err
+	}
+
+	f, err := os.Create(n)
 	if core.IsErr(err, "cannot create file on %v:%v", l) {
 		return err
 	}
@@ -71,9 +81,14 @@ func (l *Local) Write(name string, source io.Reader) error {
 	return err
 }
 
-func (l *Local) ReadDir(prefix string, opts ListOption) ([]fs.FileInfo, error) {
-	dir, prefix := path.Split(path.Join(l.base, prefix))
-	result, err := ioutil.ReadDir(dir)
+func (l *Local) ReadDir(name string, opts ListOption) ([]fs.FileInfo, error) {
+	var dir, prefix string
+	if opts&IsPrefix > 0 {
+		dir, prefix = filepath.Split(filepath.Join(l.base, name))
+	} else {
+		dir = filepath.Join(l.base, name)
+	}
+	result, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +96,10 @@ func (l *Local) ReadDir(prefix string, opts ListOption) ([]fs.FileInfo, error) {
 	var infos []fs.FileInfo
 	for _, item := range result {
 		if strings.HasPrefix(item.Name(), prefix) {
-			infos = append(infos, item)
+			info, err := item.Info()
+			if err == nil {
+				infos = append(infos, info)
+			}
 		}
 	}
 

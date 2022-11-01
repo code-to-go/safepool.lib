@@ -23,22 +23,6 @@ func GenerateBytesKey(size int) []byte {
 	return key
 }
 
-type StreamReader struct {
-	loc    int
-	header []byte
-	r      cipher.StreamReader
-}
-
-func (sr *StreamReader) Read(p []byte) (n int, err error) {
-	if sr.loc < 8+aes.BlockSize {
-		n := copy(p[sr.loc:], sr.header)
-		sr.loc += n
-		return n, nil
-	} else {
-		return sr.r.Read(p)
-	}
-}
-
 func EncryptBlock(key []byte, nonce []byte, data []byte) ([]byte, error) {
 	block, err := newBlock(key)
 	if err != nil {
@@ -68,6 +52,23 @@ func DecryptBlock(key []byte, nonce []byte, cipherdata []byte) ([]byte, error) {
 		return nil, err
 	}
 	return data, nil
+}
+
+type StreamReader struct {
+	loc    int
+	header []byte
+	r      cipher.StreamReader
+}
+
+func (sr *StreamReader) Read(p []byte) (n int, err error) {
+	if sr.loc < 8+aes.BlockSize {
+		m := copy(p[sr.loc:], sr.header)
+		sr.loc += m
+		n, err = sr.r.Read(p[m:])
+		return m + n, err
+	} else {
+		return sr.r.Read(p)
+	}
 }
 
 // EncryptedWriter wraps w with an OFB cipher stream.
@@ -107,8 +108,8 @@ type StreamWriter struct {
 
 func (sr *StreamWriter) Write(p []byte) (n int, err error) {
 	if sr.w.S == nil {
-		n := copy(sr.header[sr.loc:], p)
-		sr.loc += n
+		m := copy(sr.header[sr.loc:], p)
+		sr.loc += m
 
 		if sr.loc == 8+aes.BlockSize {
 			keyId := binary.LittleEndian.Uint64(sr.header)
@@ -125,7 +126,7 @@ func (sr *StreamWriter) Write(p []byte) (n int, err error) {
 			iv := sr.header[8:]
 			sr.w.S = cipher.NewOFB(block, iv)
 		}
-		return n, nil
+		return sr.w.Write(p[m:])
 	} else {
 		return sr.w.Write(p)
 	}

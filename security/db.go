@@ -29,6 +29,7 @@ func sqlGetIdentities(onlyTrusted bool) ([]Identity, error) {
 	if core.IsErr(err, "cannot get trusted identities from db: %v") {
 		return nil, err
 	}
+	defer rows.Close()
 
 	var is []Identity
 	for rows.Next() {
