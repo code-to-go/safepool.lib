@@ -2,20 +2,16 @@ package safe
 
 import (
 	"path"
-	"time"
 	"weshare/core"
 	"weshare/transport"
 )
 
 func (s *Safe) replica() {
-	time.Sleep(ReplicaPeriod)
-	for range s.ticker.C {
-		for _, e := range s.exchangers {
-			if e != s.e {
-				err := s.syncAccess(e)
-				if !core.IsErr(err, "cannot sync access between %s and %s: %v", s.e, e) {
-					s.syncContent(e)
-				}
+	for _, e := range s.exchangers {
+		if e != s.e {
+			err := s.syncAccess(e)
+			if !core.IsErr(err, "cannot sync access between %s and %s: %v", s.e, e) {
+				s.syncContent(e)
 			}
 		}
 	}

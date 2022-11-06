@@ -47,7 +47,7 @@ func TestSafeCreation(t *testing.T) {
 	s2 := b2.String()
 	assert.EqualValues(t, s1, s2)
 
-	for _, h := range s.List(uint64(0)) {
+	for _, h := range s.List(uint64(0), time.Time{}) {
 		fmt.Printf("\t%s\t%d\t%d", h.Name, h.Size, h.Id)
 	}
 	s.Delete()
@@ -63,7 +63,8 @@ func BenchmarkSafe(b *testing.B) {
 	self, err := security.NewIdentity("test")
 	assert.NoErrorf(b, err, "cannot create identity")
 
-	c, err := transport.ReadConfig("../../credentials/s3-2.yaml")
+	//c, err := transport.ReadConfig("../../credentials/s3-2.yaml")
+	c, err := transport.ReadConfig("../../credentials/local.yaml")
 	assert.NoErrorf(b, err, "Cannot load S3 config: %v", err)
 
 	ForceCreation = true
@@ -87,7 +88,7 @@ func BenchmarkSafe(b *testing.B) {
 	s2 := b2.String()
 	assert.EqualValues(b, s1, s2)
 
-	for _, h := range s.List(uint64(0)) {
+	for _, h := range s.List(uint64(0), time.Time{}) {
 		fmt.Printf("\t%s\t%d\t%d", h.Name, h.Size, h.Id)
 	}
 	s.Delete()

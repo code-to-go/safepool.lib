@@ -5,6 +5,11 @@ typedef struct Result{
 	char* err;
     char* data;
 } Result;
+
+typedef struct App {
+	void (*feed)(char* name, char* data, int eof);
+} App;
+
 #include <stdlib.h>
 */
 import "C"
@@ -12,6 +17,8 @@ import (
 	"encoding/json"
 	"weshare/engine"
 	"weshare/model"
+	"weshare/safe"
+	"weshare/transport"
 )
 
 //export start
@@ -50,5 +57,35 @@ func setDomain(domainDef *C.char) *C.char {
 	if err != nil {
 		return C.CString(err.Error())
 	}
+	return nil
+}
+
+//export saveSafe
+func saveSafe(nameC *C.char, configsC *C.char) *C.char {
+	name := C.GoString(nameC)
+	configsS := C.GoString(configsC)
+
+	var configs []transport.Config
+	err := json.Unmarshal([]byte(configsS), &configs)
+	if err != nil {
+		return C.CString(err.Error())
+	}
+
+	if err = safe.Save(name, configs); err != nil {
+		return C.CString(err.Error())
+	}
+	return nil
+}
+
+//export openSafe
+func openSafe(nameC *C.char, handle *C.int) *C.char {
+	name := C.GoString(nameC)
+	safe.Load(name)
+
+	return nil
+}
+
+//export createSafe
+func createSafe(nameDef *C.char, jsonConfig *C.char, handle *C.int) *C.char {
 	return nil
 }

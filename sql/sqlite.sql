@@ -59,10 +59,10 @@ CREATE TABLE IF NOT EXISTS heads (
 CREATE INDEX IF NOT EXISTS idx_heads_id ON heads(id);
 
 -- GET_HEADS
-SELECT id, name, modtime, size, hash FROM heads WHERE safe=:safe AND id > :after ORDER BY id
+SELECT id, name, modtime, size, hash,ts FROM heads WHERE safe=:safe AND id > :after AND ts> :afterTime ORDER BY id
 
 -- SET_HEAD
-INSERT INTO heads(safe,id,name,modtime,size,hash) VALUES(:safe,:id,:name,:modtime,:size,:hash)
+INSERT INTO heads(safe,id,name,modtime,size,hash,ts) VALUES(:safe,:id,:name,:modtime,:size,:hash,:ts)
 
 -- INIT
 CREATE TABLE IF NOT EXISTS keystore (
@@ -93,10 +93,10 @@ CREATE TABLE IF NOT EXISTS safe_identity (
 );
 
 -- GET_TRUSTED_ON_SAFE
-SELECT i.signatureKey, i.encryptionKey,nick FROM identity i INNER JOIN safe_identity s WHERE s.safe=:safe AND i.signatureKey = s.signatureKey AND i.trusted
+SELECT i.signatureKey, i.encryptionKey,nick,ts FROM identity i INNER JOIN safe_identity s WHERE s.safe=:safe AND i.signatureKey = s.signatureKey AND i.trusted
 
 -- GET_IDENTITY_ON_SAFE
-SELECT i.signatureKey, i.encryptionKey,nick,since FROM identity i INNER JOIN safe_identity s WHERE s.safe=:safe AND i.signatureKey = s.signatureKey
+SELECT i.signatureKey, i.encryptionKey,nick,since,ts FROM identity i INNER JOIN safe_identity s WHERE s.safe=:safe AND i.signatureKey = s.signatureKey
 
 -- SET_IDENTITY_ON_SAFE
 INSERT INTO safe_identity(signatureKey,encryptionKey,since,safe) VALUES(:signatureKey,:encryptionKey,:since,:safe)
@@ -104,3 +104,38 @@ INSERT INTO safe_identity(signatureKey,encryptionKey,since,safe) VALUES(:signatu
 
 -- DEL_IDENTITY_ON_SAFE
 DELETE FROM safe_identity WHERE signatureKey=:signatureKey AND encryptionKey=:encryptionKey AND safe=:safe
+
+-- INIT
+CREATE TABLE IF NOT EXISTS feed (
+    safe VARCHAR(128),
+    feedTime INTEGER,
+    CONSTRAINT PRIMARY KEY(safe)
+);
+
+-- SET_FEED_TIME
+INSERT INTO feed(safe,feedTime) VALUES(:safe,:feedTime)
+    ON CONFLICT(safe,feedTime) DO UPDATE SET safe=:safe
+	    WHERE safe=:safe AND keyId=:keyId
+
+-- GET_FEED_TIME
+SELECT feedTime FROM feed WHERE safe=:safe
+
+-- INIT
+CREATE TABLE IF NOT EXISTS chat (
+    safe VARCHAR(128),
+    name string,
+    author string,
+    message BLOB,
+    CONSTRAINT PRIMARY KEY(safe)
+);
+
+-- SET_CHAT_MESSAGE
+INSERT INTO chat(safe,name,author,messag, ts) VALUES(:safe,:name,:author,:message, :ts)
+    ON CONFLICT(safe,name,author) DO UPDATE SET message=:message
+	    WHERE safe=:safe AND name=:name AND author=:author
+
+-- GET_CHAT_MESSAGES
+SELECT message FROM chat WHERE safe=:safe AND ts > :after ORDER BY id DESC LIMIT :limit
+
+-- GET_CHAT_OFFSET 
+SELECT max(ts)

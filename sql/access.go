@@ -39,8 +39,7 @@ func GetAccess(domain string) (model.Transport, error) {
 	var data []byte
 	var access model.Transport
 
-	row := QueryRow("GET_ACCESS", Args{"domain": domain})
-	err := row.Scan(&data)
+	err := QueryRow("GET_ACCESS", Args{"domain": domain}, &data)
 	if core.IsErr(err, "cannot get access for domain %s: %v", domain) {
 		return access, err
 	}

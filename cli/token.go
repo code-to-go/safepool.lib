@@ -8,7 +8,6 @@ import (
 	"weshare/engine"
 	"weshare/model"
 	"weshare/security"
-	"weshare/sql"
 	"weshare/transport"
 
 	"github.com/fatih/color"
@@ -170,11 +169,11 @@ func processToken(commands []string, options Options) {
 		if err != nil {
 			return
 		}
-	} else {
-		access, err = sql.GetAccess(domain)
-		if err != nil {
-			//			access, err = transportWizard(domain)
-		}
+		// } else {
+		// access, err = sql.GetAccess(domain)
+		// if err != nil {
+		// 	//			access, err = transportWizard(domain)
+		// }
 	}
 
 	data, err := json.Marshal(model.AccessToken{

@@ -6,12 +6,13 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 	"weshare/core"
 	"weshare/security"
 )
 
-func (s *Safe) list(after uint64) ([]Head, error) {
-	hs, err := sqlGetHeads(s.Name, after)
+func (s *Safe) list(afterId uint64, afterTime time.Time) ([]Head, error) {
+	hs, err := sqlGetHeads(s.Name, afterId, afterTime)
 	if core.IsErr(err, "cannot read Safe heads: %v") {
 		return nil, err
 	}

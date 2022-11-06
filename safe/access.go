@@ -64,14 +64,14 @@ func (s *Safe) ImportAccess(e transport.Exchanger) (hash.Hash, error) {
 }
 
 func (s *Safe) ExportAccessFile(e transport.Exchanger) error {
-	identities, _, err := s.sqlGetIdentities(false)
+	identities, err := s.sqlGetIdentities(false)
 	if core.IsErr(err, "cannot get identities for safe '%s':%v", s.Name) {
 		return err
 	}
 
 	var grants []Grant
 	for _, i := range identities {
-		keystoreKey, err := security.EcEncrypt(i, s.masterKey)
+		keystoreKey, err := security.EcEncrypt(i.Identity, s.masterKey)
 		if core.IsErr(err, "cannot encrypt master key for identity %s: %v", i.Nick) {
 			return err
 		}
@@ -112,8 +112,8 @@ func (s *Safe) ExportAccessFile(e transport.Exchanger) error {
 
 func (s *Safe) importMasterKey(a AccessFile) error {
 	for _, g := range a.Grants {
-		if security.SameIdentity(s.self, g.Identity) {
-			masterKey, err := security.EcDecrypt(s.self, g.KeystoreKey)
+		if security.SameIdentity(s.Self, g.Identity) {
+			masterKey, err := security.EcDecrypt(s.Self, g.KeystoreKey)
 			if !core.IsErr(err, "corrupted master key in access grant: %v", err) {
 				err = s.sqlSetKey(a.MasterKeyId, masterKey)
 				if core.IsErr(err, "cannot write master key to db: %v", err) {
@@ -127,14 +127,14 @@ func (s *Safe) importMasterKey(a AccessFile) error {
 }
 
 func (s *Safe) importGrants(a AccessFile, ks Keystore) error {
-	identities, sinces, err := s.sqlGetIdentities(false)
+	identities, err := s.sqlGetIdentities(false)
 	if core.IsErr(err, "cannot read identities during grant import: %v", err) {
 		return err
 	}
-	is := map[string]int{}
-	for idx, i := range identities {
+	is := map[string]Identity{}
+	for _, i := range identities {
 		k := string(append(i.SignatureKey.Public, i.EncryptionKey.Public...))
-		is[k] = idx
+		is[k] = i
 	}
 
 	for _, g := range a.Grants {
@@ -150,10 +150,9 @@ func (s *Safe) importGrants(a AccessFile, ks Keystore) error {
 	}
 
 	needNewMasterKey := false
-	for _, idx := range is {
-		since := sinces[idx]
-		if _, ok := ks[since]; ok {
-			s.sqlDeleteIdentity(identities[idx])
+	for _, i := range is {
+		if _, ok := ks[i.Since]; ok {
+			s.sqlDeleteIdentity(i)
 			needNewMasterKey = true
 		}
 	}
@@ -198,21 +197,27 @@ func (s *Safe) readAccessFile(e transport.Exchanger) (AccessFile, hash.Hash, err
 		return AccessFile{}, nil, err
 	}
 
-	if security.VerifySignedHash(sh, []security.Identity{s.self}, h.Sum(nil)) {
+	if security.VerifySignedHash(sh, []security.Identity{s.Self}, h.Sum(nil)) {
 		return a, h, nil
 	}
 
-	trusted, _, err := s.sqlGetIdentities(true)
+	trusted, err := s.sqlGetIdentities(true)
 	if core.IsErr(err, "cannot get trusted identities: %v") {
 		return AccessFile{}, nil, nil
 	}
-	if !security.VerifySignedHash(sh, trusted, h.Sum(nil)) {
+
+	var is []security.Identity
+	for _, t := range trusted {
+		is = append(is, t.Identity)
+	}
+
+	if !security.VerifySignedHash(sh, is, h.Sum(nil)) {
 		return AccessFile{}, nil, ErrNotTrusted
 	}
 
-	_ = security.AppendToSignedHash(sh, s.self)
+	_ = security.AppendToSignedHash(sh, s.Self)
 	if !core.IsErr(err, "cannot lock access on %s: %v", s.Name, err) {
-		if security.AppendToSignedHash(sh, s.self) == nil {
+		if security.AppendToSignedHash(sh, s.Self) == nil {
 			err = transport.WriteJSON(e, signatureFile, sh, nil)
 			core.IsErr(err, "cannot write signature file on %s: %v", s.Name, err)
 		}
@@ -238,7 +243,7 @@ func (s *Safe) writeAccessFile(e transport.Exchanger, a AccessFile) (hash.Hash, 
 		return nil, err
 	}
 
-	sh, err := security.NewSignedHash(h.Sum(nil), s.self)
+	sh, err := security.NewSignedHash(h.Sum(nil), s.Self)
 	if core.IsErr(err, "cannot generate signature hash on %s: %v", s.Name, err) {
 		return nil, err
 	}

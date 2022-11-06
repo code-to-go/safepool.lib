@@ -38,10 +38,8 @@ type Args map[string]any
 
 func named(m Args) []any {
 	var args []any
-	if m != nil {
-		for k, v := range m {
-			args = append(args, sql.Named(k, v))
-		}
+	for k, v := range m {
+		args = append(args, sql.Named(k, v))
 	}
 	return args
 }
@@ -50,8 +48,12 @@ func Exec(key string, m Args) (sql.Result, error) {
 	return getStatement(key).Exec(named(m)...)
 }
 
-func QueryRow(key string, m Args) *sql.Row {
-	return getStatement(key).QueryRow(named(m)...)
+func QueryRow(key string, m Args, dest ...any) error {
+	row := getStatement(key).QueryRow(named(m)...)
+	if row.Err() == nil {
+		return row.Scan(dest...)
+	}
+	return row.Err()
 }
 
 func Query(key string, m Args) (*sql.Rows, error) {

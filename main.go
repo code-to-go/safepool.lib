@@ -14,5 +14,5 @@ func init() {
 }
 
 func main() {
-	cli.ProcessArgs()
+	cli.Start()
 }

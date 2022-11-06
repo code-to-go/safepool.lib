@@ -107,8 +107,7 @@ func SetFile(file model.File) error {
 }
 
 func GetMerkleTree(domain string, name string, author string) (tree []byte, err error) {
-	row := QueryRow("GET_MERKLE_TREE", Args{"domain": domain, "name": name, "author": author})
-	err = row.Scan(&tree)
+	err = QueryRow("GET_MERKLE_TREE", Args{"domain": domain, "name": name, "author": author}, &tree)
 	if err != nil {
 		logrus.Errorf("get merkle")
 	}

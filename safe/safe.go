@@ -13,6 +13,7 @@ import (
 	"weshare/transport"
 
 	"github.com/godruoyi/go-snowflake"
+	"github.com/sirupsen/logrus"
 )
 
 const SafeConfigFile = ".weshare-safe.json"
@@ -27,16 +28,31 @@ type SafeConfig struct {
 	Id      uint64
 }
 
-type Safe struct {
-	Name string
+type Consumer interface {
+	TimeOffset(s *Safe) time.Time
+	Accept(s *Safe, h Head) bool
+}
 
-	self        security.Identity
+type Safe struct {
+	Name      string
+	Self      security.Identity
+	Poll      chan string
+	Consumers []Consumer
+
 	e           transport.Exchanger
 	exchangers  []transport.Exchanger
 	masterKeyId uint64
 	masterKey   []byte
-	ticker      *time.Ticker
+	lastReplica time.Time
 	accessHash  []byte
+}
+
+type Identity struct {
+	security.Identity
+	//Since is the keyId used when the identity was added to the Safe access
+	Since uint64
+	//AddedOn is the timestamp when the identity is stored on the local DB
+	AddedOn time.Time
 }
 
 type Head struct {
@@ -47,6 +63,7 @@ type Head struct {
 	ModTime   time.Time
 	Author    security.Identity
 	Signature []byte
+	TimeStamp time.Time `json:"-"`
 }
 
 const (
@@ -55,12 +72,14 @@ const (
 )
 
 var ForceCreation = false
-var ReplicaPeriod = time.Minute
+var ReplicaPeriod = time.Hour
 
 func CreateSafe(self security.Identity, name string, configs []transport.Config) (Safe, error) {
 	s := Safe{
-		Name: name,
-		self: self,
+		Name:        name,
+		Self:        self,
+		Poll:        make(chan string),
+		lastReplica: time.Now(),
 	}
 	err := s.connectSafe(name, configs)
 	if err != nil {
@@ -95,10 +114,7 @@ func CreateSafe(self security.Identity, name string, configs []transport.Config)
 		return Safe{}, err
 	}
 
-	if ReplicaPeriod > 0 {
-		s.ticker = time.NewTicker(ReplicaPeriod)
-		go s.replica()
-	}
+	go s.poll()
 	return s, err
 }
 
@@ -106,7 +122,7 @@ func CreateSafe(self security.Identity, name string, configs []transport.Config)
 func OpenSafe(self security.Identity, name string, configs []transport.Config) (Safe, error) {
 	s := Safe{
 		Name: name,
-		self: self,
+		Self: self,
 	}
 	err := s.connectSafe(name, configs)
 	if err != nil {
@@ -117,8 +133,8 @@ func OpenSafe(self security.Identity, name string, configs []transport.Config) (
 	return s, err
 }
 
-func (s Safe) List(after uint64) []Head {
-	hs, _ := s.list(after)
+func (s Safe) List(afterId uint64, afterTs time.Time) []Head {
+	hs, _ := s.list(afterId, afterTs)
 	return hs
 }
 
@@ -131,7 +147,7 @@ func (s Safe) Post(name string, r io.Reader) (Head, error) {
 	}
 
 	hash := hr.Hash()
-	signature, err := security.Sign(s.self, hash)
+	signature, err := security.Sign(s.Self, hash)
 	if core.IsErr(err, "cannot sign file %s.body in %s: %v", name, s.e) {
 		return Head{}, err
 	}
@@ -141,7 +157,7 @@ func (s Safe) Post(name string, r io.Reader) (Head, error) {
 		Size:      hr.Size(),
 		Hash:      hash,
 		ModTime:   time.Now(),
-		Author:    s.self.Public(),
+		Author:    s.Self.Public(),
 		Signature: signature,
 	}
 	data, err := json.Marshal(h)
@@ -180,9 +196,7 @@ func (s Safe) Close() {
 	for _, e := range s.exchangers {
 		_ = e.Close()
 	}
-	if s.ticker != nil {
-		s.ticker.Stop()
-	}
+	close(s.Poll)
 }
 
 func (s Safe) Delete() error {
@@ -195,7 +209,35 @@ func (s Safe) Delete() error {
 	return nil
 }
 
-func (s Safe) Identities() ([]security.Identity, error) {
-	identities, _, err := s.sqlGetIdentities(false)
+func (s Safe) Identities() ([]Identity, error) {
+	identities, err := s.sqlGetIdentities(false)
 	return identities, err
+}
+
+func (s Safe) poll() {
+	for r := range s.Poll {
+		logrus.Infof("poll request from %s", r)
+
+		timeOffset := time.Now()
+		offsets := map[Consumer]time.Time{}
+		for _, c := range s.Consumers {
+			o := c.TimeOffset(&s)
+			offsets[c] = o
+			if timeOffset.After(o) {
+				timeOffset = o
+			}
+		}
+
+		for _, h := range s.List(0, timeOffset) {
+			for _, c := range s.Consumers {
+				if c.Accept(&s, h) {
+					break
+				}
+			}
+		}
+
+		if time.Since(s.lastReplica) > ReplicaPeriod {
+			s.replica()
+		}
+	}
 }

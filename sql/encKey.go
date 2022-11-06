@@ -24,14 +24,11 @@ func GetEncKeys(domain string) (map[uint32][]byte, error) {
 }
 
 func GetLastEncKey(domain string) (keyId uint32, keyValue []byte, err error) {
-	row := QueryRow("GET_LAST_ENC_KEY_BY_DOMAIN", Args{"domain": domain})
-	err = row.Err()
+	var value string
+	err = QueryRow("GET_LAST_ENC_KEY_BY_DOMAIN", Args{"domain": domain}, &keyId, &value)
 	if core.IsErr(err, "cannot get encryption keys from db for domain '%s': %v", domain) {
 		return 0, nil, err
 	}
-
-	var value string
-	err = row.Scan(&keyId, &value)
 	return keyId, DecodeBase64(value), err
 }
 

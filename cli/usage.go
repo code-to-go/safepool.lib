@@ -3,7 +3,7 @@ package cli
 import "fmt"
 
 func usage() {
-	fmt.Printf("usage: weshare <command>\n\n" +
+	fmt.Printf("usage: saferay <domain>\n\n" +
 		"Commands:\n" +
 		"\tjoin <token>                       join a new domain; token is a base64 encoding of the access configuration\n" +
 		"\ttoken <domain> <configFile>        generate a token for a domain\n" +

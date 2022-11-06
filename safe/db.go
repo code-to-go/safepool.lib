@@ -1,13 +1,16 @@
 package safe
 
 import (
+	"encoding/json"
+	"time"
 	"weshare/core"
 	"weshare/security"
 	"weshare/sql"
+	"weshare/transport"
 )
 
-func sqlGetHeads(safe string, after uint64) ([]Head, error) {
-	rows, err := sql.Query("GET_HEADS", sql.Args{"safe": safe, "after": after})
+func sqlGetHeads(safe string, afterId uint64, afterTime time.Time) ([]Head, error) {
+	rows, err := sql.Query("GET_HEADS", sql.Args{"safe": safe, "afterId": afterId, "afterTime": sql.EncodeTime(afterTime)})
 	if core.IsErr(err, "cannot get safes heads from db: %v") {
 		return nil, err
 	}
@@ -17,12 +20,14 @@ func sqlGetHeads(safe string, after uint64) ([]Head, error) {
 	for rows.Next() {
 		var h Head
 		var modTime int64
+		var ts int64
 		var hash string
-		err = rows.Scan(&h.Id, &h.Name, &modTime, &h.Size, &hash)
+		err = rows.Scan(&h.Id, &h.Name, &modTime, &h.Size, &hash, &ts)
 		if !core.IsErr(err, "cannot read safe heads from db: %v") {
 			continue
 		}
 		h.ModTime = sql.DecodeTime(modTime)
+		h.TimeStamp = sql.DecodeTime(ts)
 		heads = append(heads, h)
 	}
 	return heads, nil
@@ -36,6 +41,7 @@ func sqlAddHead(safe string, h Head) error {
 		"size":    h.Size,
 		"modTime": sql.EncodeTime(h.ModTime),
 		"hash":    sql.EncodeBase64(h.Hash[:]),
+		"ts":      sql.EncodeTime(time.Now()),
 	})
 	return err
 }
@@ -81,7 +87,7 @@ func (s *Safe) sqlGetKeystore() (Keystore, error) {
 	return ks, nil
 }
 
-func (s *Safe) sqlGetIdentities(onlyTrusted bool) (identities []security.Identity, sinces []uint64, err error) {
+func (s *Safe) sqlGetIdentities(onlyTrusted bool) (identities []Identity, err error) {
 	var q string
 	if onlyTrusted {
 		q = "GET_TRUSTED_ON_SAFE"
@@ -91,28 +97,32 @@ func (s *Safe) sqlGetIdentities(onlyTrusted bool) (identities []security.Identit
 
 	rows, err := sql.Query(q, sql.Args{"safe": s.Name})
 	if core.IsErr(err, "cannot get trusted identities from db: %v") {
-		return nil, nil, err
+		return nil, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var encryptionKey, signatureKey, nick string
 		var since uint64
-		err = rows.Scan(&signatureKey, &encryptionKey, &nick, &since)
+		var ts int64
+		err = rows.Scan(&signatureKey, &encryptionKey, &nick, &since, &ts)
 		if core.IsErr(err, "cannot read identity from db: %v") {
 			continue
 		}
 
 		ek, _ := security.KeyFromBase64(encryptionKey)
 		sk, _ := security.KeyFromBase64(signatureKey)
-		identities = append(identities, security.Identity{
-			Nick:          nick,
-			SignatureKey:  sk,
-			EncryptionKey: ek,
+		identities = append(identities, Identity{
+			Identity: security.Identity{
+				Nick:          nick,
+				SignatureKey:  sk,
+				EncryptionKey: ek,
+			},
+			Since:   since,
+			AddedOn: sql.DecodeTime(ts),
 		})
-		sinces = append(sinces, since)
 	}
-	return identities, sinces, nil
+	return identities, nil
 }
 
 func (s *Safe) sqlSetIdentity(i security.Identity, since uint64) error {
@@ -124,11 +134,12 @@ func (s *Safe) sqlSetIdentity(i security.Identity, since uint64) error {
 		"encryptionKey": ek,
 		"safe":          s.Name,
 		"since":         since,
+		"ts":            sql.EncodeTime(time.Now()),
 	})
 	return err
 }
 
-func (s *Safe) sqlDeleteIdentity(i security.Identity) error {
+func (s *Safe) sqlDeleteIdentity(i Identity) error {
 	sk, _ := i.SignatureKey.Base64()
 	ek, _ := i.EncryptionKey.Base64()
 
@@ -138,4 +149,28 @@ func (s *Safe) sqlDeleteIdentity(i security.Identity) error {
 		"safe":          s.Name,
 	})
 	return err
+}
+
+func sqlSave(name string, configs []transport.Config) error {
+	data, err := json.Marshal(&configs)
+	if core.IsErr(err, "cannot marshal transport configuration of %s: %v", name) {
+		return err
+	}
+
+	_, err = sql.Exec("SET_SAFE", sql.Args{"name": name, "configs": sql.EncodeBase64(data)})
+	core.IsErr(err, "cannot save transport configuration of %s: %v", name)
+	return err
+}
+
+func sqlLoad(name string) ([]transport.Config, error) {
+	var data []byte
+	var configs []transport.Config
+	err := sql.QueryRow("GET_SAFE", sql.Args{"name": name}, &data)
+	if core.IsErr(err, "cannot get safe %s config: %v", name) {
+		return nil, err
+	}
+
+	err = json.Unmarshal(data, &configs)
+	core.IsErr(err, "cannot unmarshal configs of %s: %v", name)
+	return configs, err
 }
