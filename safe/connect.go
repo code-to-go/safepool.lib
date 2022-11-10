@@ -6,9 +6,9 @@ import (
 	"math"
 	"math/rand"
 	"path"
+	"github.com/code-to-go/safepool/core"
+	"github.com/code-to-go/safepool/transport"
 	"time"
-	"weshare/core"
-	"weshare/transport"
 
 	"github.com/sirupsen/logrus"
 )

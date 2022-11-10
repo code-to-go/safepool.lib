@@ -8,8 +8,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"github.com/code-to-go/safepool/core"
 	"strings"
-	"weshare/core"
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"

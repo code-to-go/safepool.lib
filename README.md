@@ -1,1 +1,1 @@
-# weshare.zone
+# safepool.zone

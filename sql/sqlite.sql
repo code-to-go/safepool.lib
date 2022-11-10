@@ -29,20 +29,20 @@ INSERT INTO identity(signatureKey,encryptionKey,nick) VALUES(:signatureKey,:encr
 -- INIT
 CREATE TABLE IF NOT EXISTS config (
     safe VARCHAR(128) NOT NULL, 
-    name VARCHAR(64) NOT NULL, 
+    k VARCHAR(64) NOT NULL, 
     s VARCHAR(64) NOT NULL,
     i INTEGER NOT NULL,
     b TEXT,
-    CONSTRAINT pk_safe_key PRIMARY KEY(safe,name)
+    CONSTRAINT pk_safe_key PRIMARY KEY(safe,k)
 );
 
 -- GET_CONFIG
-SELECT s, i, b FROM config WHERE safe=:safe AND name=:name
+SELECT s, i, b FROM config WHERE safe=:safe AND k=:key
 
 -- SET_CONFIG
-INSERT INTO config(safe,name,s,i,b) VALUES(:safe,:name,:s,:i,:b)
-	ON CONFLICT(safe,name) DO UPDATE SET s=:s,i=:i,b=:b
-	WHERE safe=:safe AND name=:name
+INSERT INTO config(safe,k,s,i,b) VALUES(:safe,:key,:s,:i,:b)
+	ON CONFLICT(safe,k) DO UPDATE SET s=:s,i=:i,b=:b
+	WHERE safe=:safe AND k=:key
 
 -- INIT
 CREATE TABLE IF NOT EXISTS heads (

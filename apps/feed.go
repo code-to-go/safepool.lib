@@ -1,9 +1,9 @@
 package apps
 
 import (
+	"github.com/code-to-go/safepool/core"
+	"github.com/code-to-go/safepool/safe"
 	"strings"
-	"weshare/core"
-	"weshare/safe"
 )
 
 type App interface {

@@ -2,8 +2,8 @@ package main
 
 import (
 	_ "embed"
-	"weshare/cli"
-	"weshare/sql"
+	"fmt"
+	"github.com/code-to-go/safepool/sql"
 )
 
 //go:embed sql/sqlite.sql
@@ -14,5 +14,5 @@ func init() {
 }
 
 func main() {
-	cli.Start()
+	fmt.Print("This is just a library! ")
 }

@@ -8,7 +8,7 @@ import (
 )
 
 func TestDb(t *testing.T) {
-	// DbName = "weshare.test.db"
+	// DbName = "safepool.test.db"
 	// DeleteDB()
 
 	// LoadSQLFromFile("sqlite.sql")
@@ -28,11 +28,11 @@ func TestDb(t *testing.T) {
 
 	// domains, err := GetDomains()
 	// assert.NoErrorf(t, err, "cannot list domains: %v", err)
-	// assert.Contains(t, domains, "public.weshare.zone", "cannot find expected domain")
+	// assert.Contains(t, domains, "public.safepool.zone", "cannot find expected domain")
 
 	// now := time.Unix(time.Now().Unix(), 0)
 	// err = SetFile(model.File{
-	// 	Domain:  "public.weshare.zone",
+	// 	Domain:  "public.safepool.zone",
 	// 	Name:    "test.txt",
 	// 	Author:  security.Identity{},
 	// 	Hash:    []byte("hash"),
@@ -41,14 +41,14 @@ func TestDb(t *testing.T) {
 	// })
 	// assert.NoErrorf(t, err, "cannot set file: %v", err)
 
-	// f, err := GetFileByName("public.weshare.zone", "test.txt")
+	// f, err := GetFileByName("public.safepool.zone", "test.txt")
 	// assert.NoErrorf(t, err, "cannot get file: %v", err)
 	// assert.Equal(t, now, f.ModTime)
 
-	// err = SetEncKey("public.weshare.zone", 1, []byte("some key"))
+	// err = SetEncKey("public.safepool.zone", 1, []byte("some key"))
 	// assert.NoErrorf(t, err, "cannot set key: %v", err)
 
-	// keys, err := GetEncKeys("public.weshare.zone")
+	// keys, err := GetEncKeys("public.safepool.zone")
 	// assert.NoErrorf(t, err, "cannot get keys: %v", err)
 	// assert.Len(t, keys, 1, "keys is not 1 size")
 	// assert.Equal(t, []byte("some key"), keys[1], "unexpected key value")

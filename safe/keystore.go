@@ -3,9 +3,9 @@ package safe
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/code-to-go/safepool/core"
+	"github.com/code-to-go/safepool/security"
 	"time"
-	"weshare/core"
-	"weshare/security"
 
 	"github.com/patrickmn/go-cache"
 )

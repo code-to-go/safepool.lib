@@ -6,8 +6,8 @@ import (
 	"io/fs"
 	"net/url"
 	"path"
+	"github.com/code-to-go/safepool/core"
 	"strings"
-	"weshare/core"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"

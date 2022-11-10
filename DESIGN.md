@@ -1,5 +1,5 @@
 # Intro
-Weshare is a distributed secure add-only content distribution based on passive storage. It comes both as a Go and binary library. 
+Safepool is a distributed secure add-only content distribution based on passive storage. It comes both as a Go and binary library. 
 
 The pillars of the technology are:
 1. Data is stored on storage, which is partitioned by domains. Users are identified by a private/public EC key
@@ -30,7 +30,7 @@ A user is identified by a pair private/public key. A user can be either an admin
 
 ## Domain
 A domain identifies the users who can share specific data. Each user in a domain is identified by its private/public key.
-Domains have a hierarchical structure similar to Internet domains (e.g. public.weshare.zone). In the future this hierarchy may be used for shared access
+Domains have a hierarchical structure similar to Internet domains (e.g. public.safepool.zone). In the future this hierarchy may be used for shared access
 
 
 ## Lineage
@@ -76,7 +76,7 @@ For each change file:
 
 # Console Protocol
 
-Weshare 
+Safepool 
 - Helo: provide server information
 - State: list domains and status
 - State [domain]: list files in a domain 
@@ -90,9 +90,9 @@ Weshare
 | Request | Response | 
 |------|----|
 | HELO | WESHARE 1.0 |
-| STATE | public.weshare.zone <br> test.weshare.zone |
-| STATE test.weshare.zone | sample.txt C-<br>other.txt U- |
-| ADD test.weshare.zone/
+| STATE | public.safepool.zone <br> test.safepool.zone |
+| STATE test.safepool.zone | sample.txt C-<br>other.txt U- |
+| ADD test.safepool.zone/
 
 # Design
 - Layer1: Storage
@@ -188,11 +188,11 @@ In the below description:9,223,372,036,854,775,8
 All files have a version id, which is 1.0
 
 ```
-📦public.weshare/main
+📦public.safepool/main
 ┣📜.keys
 ┃ ┣1541815603606036480
 ┃ ┗1629405603606036480
-┗📜.weshare
+┗📜.safepool
 ```
 
 

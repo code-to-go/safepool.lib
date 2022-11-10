@@ -4,7 +4,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"weshare/core"
+	"github.com/code-to-go/safepool/core"
 )
 
 type Source struct {

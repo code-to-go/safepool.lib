@@ -1,8 +1,8 @@
 package safe
 
 import (
+	"github.com/code-to-go/safepool/transport"
 	"sync"
-	"weshare/transport"
 )
 
 var Connections = map[string]transport.Exchanger{}

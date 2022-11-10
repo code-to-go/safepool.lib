@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"weshare/core"
-	"weshare/safe"
-	"weshare/security"
 
+	"github.com/code-to-go/safepool/core"
+	"github.com/code-to-go/safepool/safe"
+	"github.com/code-to-go/safepool/security"
 	"github.com/godruoyi/go-snowflake"
 	"github.com/sirupsen/logrus"
 )

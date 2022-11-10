@@ -1,7 +1,7 @@
 package model
 
 import (
-	"weshare/transport"
+	"github.com/code-to-go/safepool/transport"
 )
 
 type Transport struct {

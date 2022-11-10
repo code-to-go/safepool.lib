@@ -3,18 +3,18 @@ package safe
 import (
 	"bytes"
 	"fmt"
+	"github.com/code-to-go/safepool/security"
+	"github.com/code-to-go/safepool/sql"
+	"github.com/code-to-go/safepool/transport"
 	"testing"
 	"time"
-	"weshare/security"
-	"weshare/sql"
-	"weshare/transport"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSafeCreation(t *testing.T) {
-	sql.DbName = "weshare.test.db"
+	sql.DbName = "safepool.test.db"
 	sql.DeleteDB()
 	sql.LoadSQLFromFile("../sql/sqlite.sql")
 	err := sql.OpenDB()
@@ -28,11 +28,11 @@ func TestSafeCreation(t *testing.T) {
 
 	ForceCreation = true
 	ReplicaPeriod = 0
-	s, err := CreateSafe(self, "test.weshare.net/public", []transport.Config{c})
+	s, err := CreateSafe(self, "test.safepool.net/public", []transport.Config{c})
 	assert.NoErrorf(t, err, "Cannot create safe: %v", err)
 	s.Close()
 
-	s, err = OpenSafe(self, "test.weshare.net/public", []transport.Config{c})
+	s, err = OpenSafe(self, "test.safepool.net/public", []transport.Config{c})
 	assert.NoErrorf(t, err, "Cannot open safe: %v", err)
 	defer s.Close()
 
@@ -54,7 +54,7 @@ func TestSafeCreation(t *testing.T) {
 }
 
 func BenchmarkSafe(b *testing.B) {
-	sql.DbName = "weshare.test.db"
+	sql.DbName = "safepool.test.db"
 	sql.DeleteDB()
 	sql.LoadSQLFromFile("../sql/sqlite.sql")
 	err := sql.OpenDB()
@@ -69,11 +69,11 @@ func BenchmarkSafe(b *testing.B) {
 
 	ForceCreation = true
 	ReplicaPeriod = 0
-	s, err := CreateSafe(self, "test.weshare.net/public", []transport.Config{c})
+	s, err := CreateSafe(self, "test.safepool.net/public", []transport.Config{c})
 	assert.NoErrorf(b, err, "Cannot create safe: %v", err)
 	s.Close()
 
-	s, err = OpenSafe(self, "test.weshare.net/public", []transport.Config{c})
+	s, err = OpenSafe(self, "test.safepool.net/public", []transport.Config{c})
 	assert.NoErrorf(b, err, "Cannot open safe: %v", err)
 	defer s.Close()
 
@@ -95,7 +95,7 @@ func BenchmarkSafe(b *testing.B) {
 }
 
 func TestSafeReplica(t *testing.T) {
-	sql.DbName = "weshare.test.db"
+	sql.DbName = "safepool.test.db"
 	sql.DeleteDB()
 	sql.LoadSQLFromFile("../sql/sqlite.sql")
 	err := sql.OpenDB()
@@ -113,7 +113,7 @@ func TestSafeReplica(t *testing.T) {
 	ReplicaPeriod = time.Second * 5
 
 	now := time.Now()
-	s, err := CreateSafe(self, "test.weshare.net/public", []transport.Config{s3, local})
+	s, err := CreateSafe(self, "test.safepool.net/public", []transport.Config{s3, local})
 	creationTime := time.Since(now)
 	assert.NoErrorf(t, err, "Cannot create safe: %v", err)
 	defer s.Close()

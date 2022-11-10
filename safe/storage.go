@@ -1,6 +1,6 @@
 package safe
 
-import "weshare/transport"
+import "github.com/code-to-go/safepool/transport"
 
 func Save(name string, configs []transport.Config) error {
 	return sqlSave(name, configs)

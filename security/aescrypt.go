@@ -9,7 +9,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"weshare/core"
+	"github.com/code-to-go/safepool/core"
 
 	"github.com/zenazn/pkcs7pad"
 )

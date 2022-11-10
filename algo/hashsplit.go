@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"github.com/code-to-go/safepool/core"
 	"strconv"
 	"strings"
-	"weshare/core"
 
 	"github.com/chmduquesne/rollinghash/buzhash32"
 	"golang.org/x/crypto/blake2b"

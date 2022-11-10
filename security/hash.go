@@ -4,7 +4,7 @@ import (
 	"hash"
 	"io"
 	"os"
-	"weshare/core"
+	"github.com/code-to-go/safepool/core"
 
 	"golang.org/x/crypto/blake2b"
 )

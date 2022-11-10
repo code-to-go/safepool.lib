@@ -1,7 +1,7 @@
 package sql
 
 import (
-	"weshare/model"
+	"github.com/code-to-go/safepool/model"
 )
 
 type Identity []byte

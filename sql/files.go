@@ -2,8 +2,8 @@ package sql
 
 import (
 	"database/sql"
-	"weshare/core"
-	"weshare/model"
+	"github.com/code-to-go/safepool/core"
+	"github.com/code-to-go/safepool/model"
 
 	"github.com/sirupsen/logrus"
 )

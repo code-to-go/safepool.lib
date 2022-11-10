@@ -2,8 +2,8 @@ package safe
 
 import (
 	"path"
-	"weshare/core"
-	"weshare/transport"
+	"github.com/code-to-go/safepool/core"
+	"github.com/code-to-go/safepool/transport"
 )
 
 func (s *Safe) replica() {

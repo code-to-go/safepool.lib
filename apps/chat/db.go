@@ -2,9 +2,9 @@ package chat
 
 import (
 	"encoding/json"
+	"github.com/code-to-go/safepool/core"
+	"github.com/code-to-go/safepool/sql"
 	"time"
-	"weshare/core"
-	"weshare/sql"
 )
 
 func sqlSetMessage(safe string, id uint64, author []byte, m Message, ts time.Time) error {

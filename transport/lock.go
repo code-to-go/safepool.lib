@@ -1,8 +1,8 @@
 package transport
 
 import (
+	"github.com/code-to-go/safepool/core"
 	"time"
-	"weshare/core"
 
 	"github.com/godruoyi/go-snowflake"
 )

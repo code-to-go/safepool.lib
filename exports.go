@@ -15,48 +15,25 @@ typedef struct App {
 import "C"
 import (
 	"encoding/json"
-	"weshare/engine"
-	"weshare/model"
-	"weshare/safe"
-	"weshare/transport"
+	"github.com/code-to-go/safepool/safe"
+	"github.com/code-to-go/safepool/transport"
 )
 
 //export start
 func start() C.Result {
 	var res C.Result
 
-	err := engine.Start()
-	if err != nil {
-		res.err = C.CString(err.Error())
-	}
 	return res
 }
 
 //export stop
 func stop() C.Result {
 	var res C.Result
-
-	err := engine.Stop()
-	if err != nil {
-		res.err = C.CString(err.Error())
-	}
 	return res
 }
 
 //export setDomain
 func setDomain(domainDef *C.char) *C.char {
-	data := C.GoString(domainDef)
-
-	var access model.Transport
-	err := json.Unmarshal([]byte(data), &access)
-	if err != nil {
-		return C.CString(err.Error())
-	}
-
-	err = engine.Join(access)
-	if err != nil {
-		return C.CString(err.Error())
-	}
 	return nil
 }
 

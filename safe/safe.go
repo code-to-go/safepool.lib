@@ -7,16 +7,16 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"github.com/code-to-go/safepool/core"
+	"github.com/code-to-go/safepool/security"
+	"github.com/code-to-go/safepool/transport"
 	"time"
-	"weshare/core"
-	"weshare/security"
-	"weshare/transport"
 
 	"github.com/godruoyi/go-snowflake"
 	"github.com/sirupsen/logrus"
 )
 
-const SafeConfigFile = ".weshare-safe.json"
+const SafeConfigFile = ".safepool-safe.json"
 
 var ErrNoExchange = errors.New("no Exchange available")
 var ErrInvalidSignature = errors.New("signature is invalid")

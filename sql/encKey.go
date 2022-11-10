@@ -1,7 +1,7 @@
 package sql
 
 import (
-	"weshare/core"
+	"github.com/code-to-go/safepool/core"
 )
 
 // GetChanges returns all the item in the log filtering out those smaller than start in lexical order

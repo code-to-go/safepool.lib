@@ -12,7 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var DbName = "weshare.db"
+var DbName = "safepool.db"
 var db *sql.DB
 var InitDDL string
 

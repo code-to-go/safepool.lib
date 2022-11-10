@@ -2,8 +2,8 @@ package safe
 
 import (
 	"io"
-	"weshare/core"
-	"weshare/security"
+	"github.com/code-to-go/safepool/core"
+	"github.com/code-to-go/safepool/security"
 )
 
 func (s *Safe) writeFile(name string, r io.Reader) (*security.HashStream, error) {
