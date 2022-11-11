@@ -17,6 +17,7 @@ import (
 )
 
 type Message struct {
+	Id          uint64
 	Author      security.Identity
 	Content     string
 	ContentType string
@@ -77,7 +78,7 @@ func (c *Chat) Accept(s *safe.Safe, head safe.Head) bool {
 	return true
 }
 
-func (c *Chat) Push(m Message) error {
+func (c *Chat) Post(m Message) error {
 	h := getHash(&m)
 	signature, err := security.Sign(c.Safe.Self, h)
 	if core.IsErr(err, "cannot sign chat message: %v") {
@@ -97,7 +98,7 @@ func (c *Chat) Push(m Message) error {
 	return nil
 }
 
-func (c *Chat) Pull(since time.Duration) ([]Message, error) {
-	messages := sqlGetMessages(c.Safe.Name, 0, 10)
+func (c *Chat) Pull(beforeId uint64, limit int) ([]Message, error) {
+	messages := sqlGetMessages(c.Safe.Name, beforeId, limit)
 	return messages, nil
 }

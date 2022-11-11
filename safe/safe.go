@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"time"
+
 	"github.com/code-to-go/safepool/core"
 	"github.com/code-to-go/safepool/security"
 	"github.com/code-to-go/safepool/transport"
-	"time"
 
 	"github.com/godruoyi/go-snowflake"
 	"github.com/sirupsen/logrus"
@@ -23,10 +24,10 @@ var ErrInvalidSignature = errors.New("signature is invalid")
 var ErrNotTrusted = errors.New("the author is not a trusted user")
 var ErrNotAuthorized = errors.New("no authorization for this file")
 
-type SafeConfig struct {
-	Version float32
-	Id      uint64
-}
+// type SafeConfig struct {
+// 	Version float32
+// 	Id      uint64
+// }
 
 type Consumer interface {
 	TimeOffset(s *Safe) time.Time
@@ -36,7 +37,6 @@ type Consumer interface {
 type Safe struct {
 	Name      string
 	Self      security.Identity
-	Poll      chan string
 	Consumers []Consumer
 
 	e           transport.Exchanger
@@ -74,71 +74,92 @@ const (
 var ForceCreation = false
 var ReplicaPeriod = time.Hour
 
-func CreateSafe(self security.Identity, name string, configs []transport.Config) (Safe, error) {
-	s := Safe{
+type Config struct {
+	Name    string
+	Configs []transport.Config
+}
+
+func Define(c Config) error {
+	return sqlSave(c.Name, c.Configs)
+}
+
+func List() []string {
+	names, _ := sqlList()
+	return names
+}
+
+func Create(self security.Identity, name string) (*Safe, error) {
+	configs, err := sqlLoad(name)
+	if core.IsErr(err, "unknown safe %s: %v", name) {
+		return nil, err
+	}
+
+	s := &Safe{
 		Name:        name,
 		Self:        self,
-		Poll:        make(chan string),
 		lastReplica: time.Now(),
 	}
-	err := s.connectSafe(name, configs)
+	err = s.connectSafe(name, configs)
 	if err != nil {
-		return Safe{}, err
+		return nil, err
 	}
 
 	s.masterKeyId = snowflake.ID()
 	s.masterKey = security.GenerateBytesKey(32)
 	err = s.sqlSetKey(s.masterKeyId, s.masterKey)
 	if core.IsErr(err, "çannot store master encryption key to db: %v") {
-		return s, err
+		return nil, err
 	}
 	err = security.SetIdentity(self)
 	if core.IsErr(err, "çannot save identity to db: %v") {
-		return s, err
+		return nil, err
 	}
 
 	err = s.sqlSetIdentity(self, s.masterKeyId)
 	if core.IsErr(err, "çannot link identity to save: %v") {
-		return s, err
+		return nil, err
 	}
 
 	if !ForceCreation {
 		_, err = s.e.Stat(path.Join(s.Name, ".access"))
 		if err == nil {
-			return Safe{}, ErrNotAuthorized
+			return nil, ErrNotAuthorized
 		}
 	}
 
 	err = s.ExportAccessFile(s.e)
 	if core.IsErr(err, "cannot export access file: %v") {
-		return Safe{}, err
+		return nil, err
 	}
 
-	go s.poll()
 	return s, err
 }
 
 // Init initialized a domain on the specified exchangers
-func OpenSafe(self security.Identity, name string, configs []transport.Config) (Safe, error) {
-	s := Safe{
+func Open(self security.Identity, name string) (*Safe, error) {
+	configs, err := sqlLoad(name)
+	if core.IsErr(err, "unknown safe %s: %v", name) {
+		return nil, err
+	}
+	s := &Safe{
 		Name: name,
 		Self: self,
 	}
-	err := s.connectSafe(name, configs)
+	err = s.connectSafe(name, configs)
 	if err != nil {
-		return Safe{}, err
+		return nil, err
 	}
 
 	_, err = s.ImportAccess(s.e)
 	return s, err
 }
 
-func (s Safe) List(afterId uint64, afterTs time.Time) []Head {
+func (s *Safe) List(afterId uint64, afterTs time.Time) []Head {
 	hs, _ := s.list(afterId, afterTs)
 	return hs
 }
 
-func (s Safe) Post(name string, r io.Reader) (Head, error) {
+func (s *Safe) Post(name string, r io.Reader) (Head, error) {
 	id := snowflake.ID()
 	n := path.Join(s.Name, fmt.Sprintf("%d.body", id))
 	hr, err := s.writeFile(n, r)
@@ -172,7 +193,7 @@ func (s Safe) Post(name string, r io.Reader) (Head, error) {
 	return h, nil
 }
 
-func (s Safe) Get(id uint64, w io.Writer) error {
+func (s *Safe) Get(id uint64, w io.Writer) error {
 	headName := path.Join(s.Name, fmt.Sprintf("%d.head", id))
 	bodyName := path.Join(s.Name, fmt.Sprintf("%d.body", id))
 
@@ -192,14 +213,13 @@ func (s Safe) Get(id uint64, w io.Writer) error {
 	return nil
 }
 
-func (s Safe) Close() {
+func (s *Safe) Close() {
 	for _, e := range s.exchangers {
 		_ = e.Close()
 	}
-	close(s.Poll)
 }
 
-func (s Safe) Delete() error {
+func (s *Safe) Delete() error {
 	for _, e := range s.exchangers {
 		err := e.Delete(s.Name)
 		if err != nil {
@@ -209,35 +229,33 @@ func (s Safe) Delete() error {
 	return nil
 }
 
-func (s Safe) Identities() ([]Identity, error) {
+func (s *Safe) Identities() ([]Identity, error) {
 	identities, err := s.sqlGetIdentities(false)
 	return identities, err
 }
 
-func (s Safe) poll() {
-	for r := range s.Poll {
-		logrus.Infof("poll request from %s", r)
+func (s *Safe) Poll() {
+	logrus.Infof("poll request on %s", s.Name)
 
-		timeOffset := time.Now()
-		offsets := map[Consumer]time.Time{}
+	timeOffset := time.Now()
+	offsets := map[Consumer]time.Time{}
+	for _, c := range s.Consumers {
+		o := c.TimeOffset(s)
+		offsets[c] = o
+		if timeOffset.After(o) {
+			timeOffset = o
+		}
+	}
+
+	for _, h := range s.List(0, timeOffset) {
 		for _, c := range s.Consumers {
-			o := c.TimeOffset(&s)
-			offsets[c] = o
-			if timeOffset.After(o) {
-				timeOffset = o
+			if c.Accept(s, h) {
+				break
 			}
 		}
+	}
 
-		for _, h := range s.List(0, timeOffset) {
-			for _, c := range s.Consumers {
-				if c.Accept(&s, h) {
-					break
-				}
-			}
-		}
-
-		if time.Since(s.lastReplica) > ReplicaPeriod {
-			s.replica()
-		}
+	if time.Since(s.lastReplica) > ReplicaPeriod {
+		s.replica()
 	}
 }

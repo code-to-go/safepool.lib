@@ -84,6 +84,24 @@ INSERT INTO keystore(safe,keyId,keyValue) VALUES(:safe,:keyId,:keyValue)
 	    WHERE safe=:safe AND keyId=:keyId
 
 -- INIT
+CREATE TABLE IF NOT EXISTS safe_config (
+    name VARCHAR(128),
+    configs BLOB,
+    CONSTRAINT PRIMARY KEY(name)
+);
+
+-- GET_SAFE
+SELECT configs FROM safe_config WHERE name=:name
+
+-- LIST_SAFE
+SELECT name FROM safe_config
+
+-- SET_SAFE
+INSERT INTO safe_config(name,configs) VALUES(:name,:configs)
+    ON CONFLICT(name) DO UPDATE SET configs=:configs
+	    WHERE name=:name
+
+-- INIT
 CREATE TABLE IF NOT EXISTS safe_identity (
     safe VARCHAR(128),
     signatureKey VARCHAR(128),

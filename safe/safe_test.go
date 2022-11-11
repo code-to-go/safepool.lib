@@ -3,11 +3,12 @@ package safe
 import (
 	"bytes"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/code-to-go/safepool/security"
 	"github.com/code-to-go/safepool/sql"
 	"github.com/code-to-go/safepool/transport"
-	"testing"
-	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
@@ -26,13 +27,16 @@ func TestSafeCreation(t *testing.T) {
 	c, err := transport.ReadConfig("../../credentials/s3-2.yaml")
 	assert.NoErrorf(t, err, "Cannot load S3 config: %v", err)
 
+	err = Define(Config{"test.safepool.net/public", []transport.Config{c}})
+	assert.NoErrorf(t, err, "Cannot define safe: %v", err)
+
 	ForceCreation = true
 	ReplicaPeriod = 0
-	s, err := CreateSafe(self, "test.safepool.net/public", []transport.Config{c})
+	s, err := Create(self, "test.safepool.net/public")
 	assert.NoErrorf(t, err, "Cannot create safe: %v", err)
 	s.Close()
 
-	s, err = OpenSafe(self, "test.safepool.net/public", []transport.Config{c})
+	s, err = Open(self, "test.safepool.net/public")
 	assert.NoErrorf(t, err, "Cannot open safe: %v", err)
 	defer s.Close()
 
@@ -67,13 +71,16 @@ func BenchmarkSafe(b *testing.B) {
 	c, err := transport.ReadConfig("../../credentials/local.yaml")
 	assert.NoErrorf(b, err, "Cannot load S3 config: %v", err)
 
+	err = Define(Config{"test.safepool.net/public", []transport.Config{c}})
+	assert.NoErrorf(b, err, "Cannot define safe: %v", err)
+
 	ForceCreation = true
 	ReplicaPeriod = 0
-	s, err := CreateSafe(self, "test.safepool.net/public", []transport.Config{c})
+	s, err := Create(self, "test.safepool.net/public")
 	assert.NoErrorf(b, err, "Cannot create safe: %v", err)
 	s.Close()
 
-	s, err = OpenSafe(self, "test.safepool.net/public", []transport.Config{c})
+	s, err = Open(self, "test.safepool.net/public")
 	assert.NoErrorf(b, err, "Cannot open safe: %v", err)
 	defer s.Close()
 
@@ -109,11 +116,14 @@ func TestSafeReplica(t *testing.T) {
 	local, err := transport.ReadConfig("../../credentials/local.yaml")
 	assert.NoErrorf(t, err, "Cannot load local config: %v", err)
 
+	err = Define(Config{"test.safepool.net/public", []transport.Config{s3, local}})
+	assert.NoErrorf(t, err, "Cannot define safe: %v", err)
+
 	ForceCreation = true
 	ReplicaPeriod = time.Second * 5
 
 	now := time.Now()
-	s, err := CreateSafe(self, "test.safepool.net/public", []transport.Config{s3, local})
+	s, err := Create(self, "test.safepool.net/public")
 	creationTime := time.Since(now)
 	assert.NoErrorf(t, err, "Cannot create safe: %v", err)
 	defer s.Close()

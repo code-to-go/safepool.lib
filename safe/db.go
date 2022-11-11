@@ -2,11 +2,12 @@ package safe
 
 import (
 	"encoding/json"
+	"time"
+
 	"github.com/code-to-go/safepool/core"
 	"github.com/code-to-go/safepool/security"
 	"github.com/code-to-go/safepool/sql"
 	"github.com/code-to-go/safepool/transport"
-	"time"
 )
 
 func sqlGetHeads(safe string, afterId uint64, afterTime time.Time) ([]Head, error) {
@@ -173,4 +174,22 @@ func sqlLoad(name string) ([]transport.Config, error) {
 	err = json.Unmarshal(data, &configs)
 	core.IsErr(err, "cannot unmarshal configs of %s: %v", name)
 	return configs, err
+}
+
+func sqlList() ([]string, error) {
+	var names []string
+	rows, err := sql.Query("LIST_SAFE", nil)
+	if core.IsErr(err, "cannot list safes: %v") {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var n string
+		err = rows.Scan(&n)
+		if err == nil {
+			names = append(names, n)
+		}
+	}
+	return names, err
 }

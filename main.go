@@ -2,7 +2,7 @@ package main
 
 import (
 	_ "embed"
-	"fmt"
+
 	"github.com/code-to-go/safepool/sql"
 )
 
@@ -13,6 +13,6 @@ func init() {
 	sql.InitDDL = sqlliteDDL
 }
 
-func main() {
-	fmt.Print("This is just a library! ")
-}
+// func main() {
+// 	fmt.Print("This is just a library! ")
+// }
