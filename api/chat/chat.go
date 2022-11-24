@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/code-to-go/safepool/core"
-	"github.com/code-to-go/safepool/safe"
+	pool "github.com/code-to-go/safepool/pool"
 	"github.com/code-to-go/safepool/security"
 	"github.com/godruoyi/go-snowflake"
 	"github.com/sirupsen/logrus"
@@ -37,14 +37,14 @@ func getHash(m *Message) []byte {
 }
 
 type Chat struct {
-	Safe *safe.Safe
+	Pool *pool.Pool
 }
 
-func (c *Chat) TimeOffset(s *safe.Safe) time.Time {
+func (c *Chat) TimeOffset(s *pool.Pool) time.Time {
 	return sqlGetOffset(s.Name)
 }
 
-func (c *Chat) Accept(s *safe.Safe, head safe.Head) bool {
+func (c *Chat) Accept(s *pool.Pool, head pool.Head) bool {
 	name := head.Name
 	if !strings.HasPrefix(name, "/chat/") || !strings.HasSuffix(name, ".chat") || head.Size > 10*1024*1024 {
 		return false
@@ -80,7 +80,7 @@ func (c *Chat) Accept(s *safe.Safe, head safe.Head) bool {
 
 func (c *Chat) Post(m Message) error {
 	h := getHash(&m)
-	signature, err := security.Sign(c.Safe.Self, h)
+	signature, err := security.Sign(c.Pool.Self, h)
 	if core.IsErr(err, "cannot sign chat message: %v") {
 		return err
 	}
@@ -92,13 +92,13 @@ func (c *Chat) Post(m Message) error {
 	}
 
 	name := fmt.Sprintf("/chat/%d.chat", snowflake.ID())
-	_, err = c.Safe.Post(name, bytes.NewBuffer(data))
+	_, err = c.Pool.Post(name, bytes.NewBuffer(data))
 	core.IsErr(err, "cannot write chat message: %v")
 
 	return nil
 }
 
 func (c *Chat) Pull(beforeId uint64, limit int) ([]Message, error) {
-	messages := sqlGetMessages(c.Safe.Name, beforeId, limit)
+	messages := sqlGetMessages(c.Pool.Name, beforeId, limit)
 	return messages, nil
 }

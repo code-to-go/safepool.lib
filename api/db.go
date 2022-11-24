@@ -6,9 +6,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func sqlGetConfig(safe string, key string) (s string, i int, b []byte, ok bool) {
+func sqlGetConfig(pool string, key string) (s string, i int, b []byte, ok bool) {
 	var b64 string
-	err := sql.QueryRow("GET_CONFIG", sql.Args{"safe": safe, "key": key}, &s, &i, &b64)
+	err := sql.QueryRow("GET_CONFIG", sql.Args{"pool": pool, "key": key}, &s, &i, &b64)
 	switch err {
 	case sql.ErrNoRows:
 		ok = false
@@ -24,9 +24,9 @@ func sqlGetConfig(safe string, key string) (s string, i int, b []byte, ok bool) 
 	return s, i, b, ok
 }
 
-func sqlSetConfig(safe string, key string, s string, i int, b []byte) error {
+func sqlSetConfig(pool string, key string, s string, i int, b []byte) error {
 	b64 := sql.EncodeBase64(b)
-	_, err := sql.Exec("SET_CONFIG", sql.Args{"safe": safe, "key": key, "s": s, "i": i, "b": b64})
+	_, err := sql.Exec("SET_CONFIG", sql.Args{"pool": pool, "key": key, "s": s, "i": i, "b": b64})
 	if err != nil {
 		logrus.Errorf("cannot exec 'SET_CONFIG': %v", err)
 	}

@@ -16,7 +16,7 @@ func TestSignature(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	// TODO: save the private keyset to a safe location. DO NOT hardcode it in source code.
+	// TODO: save the private keyset to a pool location. DO NOT hardcode it in source code.
 	// Consider encrypting it with a remote key in Cloud KMS, AWS KMS or HashiCorp Vault.
 	// See https://github.com/google/tink/blob/master/docs/GOLANG-HOWTO.md#storing-and-loading-existing-keysets.
 

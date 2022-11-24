@@ -35,7 +35,7 @@ func sqlGetIdentities(onlyTrusted bool) ([]Identity, error) {
 	for rows.Next() {
 		var encryptionKey, signatureKey, nick string
 		err = rows.Scan(&signatureKey, &encryptionKey, &nick)
-		if !core.IsErr(err, "cannot read safe heads from db: %v") {
+		if !core.IsErr(err, "cannot read pool heads from db: %v") {
 			continue
 		}
 

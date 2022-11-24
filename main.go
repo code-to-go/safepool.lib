@@ -2,17 +2,12 @@ package main
 
 import (
 	_ "embed"
+	"fmt"
 
-	"github.com/code-to-go/safepool/sql"
+	"github.com/code-to-go/safepool/api"
 )
 
-//go:embed sql/sqlite.sql
-var sqlliteDDL string
-
-func init() {
-	sql.InitDDL = sqlliteDDL
+func main() {
+	api.Start()
+	fmt.Print("This is just a library! ")
 }
-
-// func main() {
-// 	fmt.Print("This is just a library! ")
-// }

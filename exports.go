@@ -15,7 +15,8 @@ typedef struct App {
 import "C"
 import (
 	"encoding/json"
-	"github.com/code-to-go/safepool/safe"
+
+	pool "github.com/code-to-go/safepool/pool"
 	"github.com/code-to-go/safepool/transport"
 )
 
@@ -48,7 +49,7 @@ func saveSafe(nameC *C.char, configsC *C.char) *C.char {
 		return C.CString(err.Error())
 	}
 
-	if err = safe.Save(name, configs); err != nil {
+	if err = pool.Save(name, configs); err != nil {
 		return C.CString(err.Error())
 	}
 	return nil
@@ -57,7 +58,7 @@ func saveSafe(nameC *C.char, configsC *C.char) *C.char {
 //export openSafe
 func openSafe(nameC *C.char, handle *C.int) *C.char {
 	name := C.GoString(nameC)
-	safe.Load(name)
+	pool.Load(name)
 
 	return nil
 }

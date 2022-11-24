@@ -1,16 +1,28 @@
 package api
 
 import (
+	_ "embed"
+
 	"github.com/code-to-go/safepool/api/chat"
 	"github.com/code-to-go/safepool/core"
-	"github.com/code-to-go/safepool/safe"
+	pool "github.com/code-to-go/safepool/pool"
 	"github.com/code-to-go/safepool/security"
+	"github.com/code-to-go/safepool/sql"
 )
 
 var Self security.Identity
 
-func init() {
-	var err error
+//go:embed sqlite.sql
+var sqlliteDDL string
+
+func Start() {
+	sql.InitDDL = sqlliteDDL
+
+	err := sql.OpenDB()
+	if err != nil {
+		panic("cannot open DB")
+	}
+
 	s, _, _, ok := sqlGetConfig("", "SELF")
 	if ok {
 		Self, err = security.IdentityFromBase64(s)
@@ -26,6 +38,7 @@ func init() {
 	if err != nil {
 		panic("corrupted identity in DB")
 	}
+
 }
 
 func SetNick(nick string) error {
@@ -39,25 +52,25 @@ func SetNick(nick string) error {
 	return err
 }
 
-func CreateSafe(c safe.Config) (*safe.Safe, error) {
-	err := safe.Define(c)
-	if core.IsErr(err, "cannot define safe %s: %v", c.Name) {
+func CreatePool(c pool.Config) (*pool.Pool, error) {
+	err := pool.Define(c)
+	if core.IsErr(err, "cannot define pool %s: %v", c.Name) {
 		return nil, err
 	}
 
-	return safe.Create(Self, c.Name)
+	return pool.Create(Self, c.Name)
 }
 
-func ListSafe() []string {
-	return safe.List()
+func ListPool() []string {
+	return pool.List()
 }
 
-func OpenSafe(name string) (*safe.Safe, error) {
-	return safe.Open(Self, name)
+func OpenSafe(name string) (*pool.Pool, error) {
+	return pool.Open(Self, name)
 }
 
-func OpenChat(s *safe.Safe) chat.Chat {
+func OpenChat(p *pool.Pool) chat.Chat {
 	return chat.Chat{
-		Safe: s,
+		Pool: p,
 	}
 }

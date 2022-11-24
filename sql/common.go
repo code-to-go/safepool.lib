@@ -11,15 +11,15 @@ import (
 var stmtCache = map[string]*sql.Stmt{}
 var ErrNoRows = sql.ErrNoRows
 
-func prepareStatement(key, s string) {
+func prepareStatement(key, s string, line int) {
 	if _, ok := stmtCache[key]; ok {
-		logrus.Panicf("duplicate SQL statement for key '%s'", s)
+		logrus.Panicf("duplicate SQL statement for key '%s' (line %d)", s, line)
 		panic(key)
 	}
 
 	stmt, err := db.Prepare(s)
 	if err != nil {
-		logrus.Panicf("cannot compile SQL statement '%s': %v", s, err)
+		logrus.Panicf("cannot compile SQL statement (%d) '%s': %v", line, s, err)
 		panic(err)
 	}
 	stmtCache[key] = stmt

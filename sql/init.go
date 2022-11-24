@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/adrg/xdg"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/sirupsen/logrus"
 )
 
@@ -19,7 +20,7 @@ var InitDDL string
 func createTables() error {
 	parts := strings.Split(InitDDL, "\n\n")
 
-	for _, part := range parts {
+	for line, part := range parts {
 		if strings.Trim(part, " ") == "" {
 			continue
 		}
@@ -38,11 +39,11 @@ func createTables() error {
 		if strings.HasPrefix(key, "INIT") {
 			_, err := db.Exec(ql)
 			if err != nil {
-				logrus.Errorf("cannot execute SQL Init stmt: %v", err)
+				logrus.Errorf("cannot execute SQL Init stmt (line %d) '%s': %v", line, ql, err)
 				return err
 			}
 		} else {
-			prepareStatement(key, ql)
+			prepareStatement(key, ql, line)
 		}
 	}
 	return nil
