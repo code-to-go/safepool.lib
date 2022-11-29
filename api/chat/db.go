@@ -9,7 +9,7 @@ import (
 )
 
 func sqlSetMessage(pool string, id uint64, author []byte, m Message, ts time.Time) error {
-	_, err := sql.Exec("SET_CHAT_MESSAGE", sql.Args{"ïd": id, "author": author, "ts": sql.EncodeTime(ts)})
+	_, err := sql.Exec("SET_CHAT_MESSAGE", sql.Args{"pool": pool, "id": id, "author": author, "ts": sql.EncodeTime(ts)})
 	core.IsErr(err, "cannot set message %d on db: %v", id)
 	return err
 }

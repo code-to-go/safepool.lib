@@ -5,6 +5,7 @@ import (
 
 	"github.com/code-to-go/safepool/core"
 	"github.com/code-to-go/safepool/security"
+	"github.com/code-to-go/safepool/transport"
 )
 
 func (p *Pool) writeFile(name string, r io.Reader) (*security.HashStream, error) {
@@ -22,7 +23,7 @@ func (p *Pool) writeFile(name string, r io.Reader) (*security.HashStream, error)
 	return hr, err
 }
 
-func (p *Pool) readFile(name string, w io.Writer) (*security.HashStream, error) {
+func (p *Pool) readFile(name string, rang *transport.Range, w io.Writer) (*security.HashStream, error) {
 	hw, err := security.NewHashStream(nil, w)
 	if core.IsErr(err, "cannot create hash stream: %v") {
 		return nil, err
@@ -33,6 +34,6 @@ func (p *Pool) readFile(name string, w io.Writer) (*security.HashStream, error) 
 		return nil, err
 	}
 
-	err = p.e.Read(name, nil, ew)
+	err = p.e.Read(name, rang, ew)
 	return hw, err
 }

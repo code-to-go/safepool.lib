@@ -164,13 +164,14 @@ func sqlSave(name string, configs []transport.Config) error {
 }
 
 func sqlLoad(name string) ([]transport.Config, error) {
-	var data []byte
+	var blob string
 	var configs []transport.Config
-	err := sql.QueryRow("GET_POOL", sql.Args{"name": name}, &data)
+	err := sql.QueryRow("GET_POOL", sql.Args{"name": name}, &blob)
 	if core.IsErr(err, "cannot get pool %s config: %v", name) {
 		return nil, err
 	}
 
+	data := sql.DecodeBase64(blob)
 	err = json.Unmarshal(data, &configs)
 	core.IsErr(err, "cannot unmarshal configs of %s: %v", name)
 	return configs, err

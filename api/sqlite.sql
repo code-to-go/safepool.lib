@@ -85,25 +85,25 @@ INSERT INTO keystore(pool,keyId,keyValue) VALUES(:pool,:keyId,:keyValue)
 	    WHERE pool=:pool AND keyId=:keyId
 
 -- INIT
-CREATE TABLE IF NOT EXISTS safe_config (
+CREATE TABLE IF NOT EXISTS pool (
     name VARCHAR(128),
     configs BLOB,
     PRIMARY KEY(name)
 );
 
 -- GET_POOL
-SELECT configs FROM safe_config WHERE name=:name
+SELECT configs FROM pool WHERE name=:name
 
 -- LIST_POOL
-SELECT name FROM safe_config
+SELECT name FROM pool
 
 -- SET_POOL
-INSERT INTO safe_config(name,configs) VALUES(:name,:configs)
+INSERT INTO pool(name,configs) VALUES(:name,:configs)
     ON CONFLICT(name) DO UPDATE SET configs=:configs
 	    WHERE name=:name
 
 -- INIT
-CREATE TABLE IF NOT EXISTS safe_identity (
+CREATE TABLE IF NOT EXISTS pool_people (
     pool VARCHAR(128),
     signatureKey VARCHAR(128),
     encryptionKey VARCHAR(128),
@@ -113,49 +113,35 @@ CREATE TABLE IF NOT EXISTS safe_identity (
 );
 
 -- GET_TRUSTED_ON_POOL
-SELECT i.signatureKey, i.encryptionKey,nick,ts FROM identity i INNER JOIN safe_identity s WHERE s.pool=:pool AND i.signatureKey = s.signatureKey AND i.trusted
+SELECT i.signatureKey, i.encryptionKey,nick,ts FROM identity i INNER JOIN pool_people s WHERE s.pool=:pool AND i.signatureKey = s.signatureKey AND i.trusted
 
 -- GET_IDENTITY_ON_POOL
-SELECT i.signatureKey, i.encryptionKey,nick,since,ts FROM identity i INNER JOIN safe_identity s WHERE s.pool=:pool AND i.signatureKey = s.signatureKey
+SELECT i.signatureKey, i.encryptionKey,nick,since,ts FROM identity i INNER JOIN pool_people s WHERE s.pool=:pool AND i.signatureKey = s.signatureKey
 
 -- SET_IDENTITY_ON_POOL
-INSERT INTO safe_identity(signatureKey,encryptionKey,since,pool) VALUES(:signatureKey,:encryptionKey,:since,:pool)
-    ON CONFLICT(signatureKey,encryptionKey,pool) DO NOTHING
+INSERT INTO pool_people(pool,signatureKey,encryptionKey,since,ts) VALUES(:pool,:signatureKey,:encryptionKey,:since,:ts)
+    ON CONFLICT(pool,signatureKey,encryptionKey) DO NOTHING
 
 -- DEL_IDENTITY_ON_POOL
-DELETE FROM safe_identity WHERE signatureKey=:signatureKey AND encryptionKey=:encryptionKey AND pool=:pool
-
--- INIT
-CREATE TABLE IF NOT EXISTS feed (
-    pool VARCHAR(128),
-    feedTime INTEGER,
-    CONSTRAINT PRIMARY KEY(pool)
-);
-
--- SET_FEED_TIME
-INSERT INTO feed(pool,feedTime) VALUES(:pool,:feedTime)
-    ON CONFLICT(pool,feedTime) DO UPDATE SET pool=:pool
-	    WHERE pool=:pool AND keyId=:keyId
-
--- GET_FEED_TIME
-SELECT feedTime FROM feed WHERE pool=:pool
+DELETE FROM pool_people WHERE signatureKey=:signatureKey AND encryptionKey=:encryptionKey AND pool=:pool
 
 -- INIT
 CREATE TABLE IF NOT EXISTS chat (
     pool VARCHAR(128),
-    name string,
+    id INTEGER,
     author string,
     message BLOB,
-    CONSTRAINT PRIMARY KEY(pool)
+    ts INTEGER,
+    CONSTRAINT pk_pool_id_author PRIMARY KEY(pool,id,author)
 );
 
 -- SET_CHAT_MESSAGE
-INSERT INTO chat(pool,name,author,messag, ts) VALUES(:pool,:name,:author,:message, :ts)
-    ON CONFLICT(pool,name,author) DO UPDATE SET message=:message
-	    WHERE pool=:pool AND name=:name AND author=:author
+INSERT INTO chat(pool,id,author,message, ts) VALUES(:pool,:id,:author,:message, :ts)
+    ON CONFLICT(pool,id,author) DO UPDATE SET message=:message
+	    WHERE pool=:pool AND id=:id AND author=:author
 
 -- GET_CHAT_MESSAGES
-SELECT message FROM chat WHERE pool=:pool AND ts > :after ORDER BY id DESC LIMIT :limit
+SELECT message FROM chat WHERE pool=:pool AND id < :beforeId ORDER BY id DESC LIMIT :limit
 
 -- GET_CHAT_OFFSET 
-SELECT max(ts)
+SELECT max(ts) FROM chat WHERE pool=:pool

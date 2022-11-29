@@ -50,7 +50,7 @@ func (p *Pool) list(afterId uint64, afterTime time.Time) ([]Head, error) {
 
 func (p *Pool) readHead(name string) (Head, error) {
 	var b bytes.Buffer
-	_, err := p.readFile(name, &b)
+	_, err := p.readFile(name, nil, &b)
 	if core.IsErr(err, "cannot read header of %s in %s: %v", name, p.e) {
 		return Head{}, err
 	}

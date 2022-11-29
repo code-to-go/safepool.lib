@@ -40,6 +40,12 @@ type Chat struct {
 	Pool *pool.Pool
 }
 
+func Get(p *pool.Pool) Chat {
+	return Chat{
+		Pool: p,
+	}
+}
+
 func (c *Chat) TimeOffset(s *pool.Pool) time.Time {
 	return sqlGetOffset(s.Name)
 }
@@ -56,7 +62,7 @@ func (c *Chat) Accept(s *pool.Pool, head pool.Head) bool {
 	}
 
 	buf := bytes.Buffer{}
-	err = s.Get(head.Id, &buf)
+	err = s.Get(head.Id, nil, &buf)
 	if core.IsErr(err, "cannot read %s from %s: %v", head.Name, s.Name) {
 		return true
 	}
@@ -92,7 +98,7 @@ func (c *Chat) Post(m Message) error {
 	}
 
 	name := fmt.Sprintf("/chat/%d.chat", snowflake.ID())
-	_, err = c.Pool.Post(name, bytes.NewBuffer(data))
+	_, err = c.Pool.Post(name, bytes.NewBuffer(data), nil)
 	core.IsErr(err, "cannot write chat message: %v")
 
 	return nil

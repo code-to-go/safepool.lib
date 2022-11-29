@@ -1,9 +1,11 @@
 package transport
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/fs"
+	"time"
 
 	"os"
 	"path"
@@ -25,9 +27,10 @@ type SFTPConfig struct {
 }
 
 type SFTP struct {
-	c    *sftp.Client
-	base string
-	url  string
+	c              *sftp.Client
+	base           string
+	url            string
+	touchedModtime time.Time
 }
 
 func NewSFTP(config SFTPConfig) (Exchanger, error) {
@@ -80,7 +83,18 @@ func NewSFTP(config SFTPConfig) (Exchanger, error) {
 	if base == "" {
 		base = "/"
 	}
-	return &SFTP{c, base, url}, nil
+	return &SFTP{c, base, url, time.Time{}}, nil
+}
+
+func (s *SFTP) Touched() bool {
+	touchFile := path.Join(s.base, ".touched")
+	stat, err := s.Stat(touchFile)
+	touched := err != nil || stat.ModTime().After(s.touchedModtime)
+	if touched {
+		s.touchedModtime = stat.ModTime()
+		core.IsErr(s.Write(touchFile, &bytes.Buffer{}), "cannot write touch file: %v")
+	}
+	return touched
 }
 
 func (s *SFTP) Read(name string, rang *Range, dest io.Writer) error {

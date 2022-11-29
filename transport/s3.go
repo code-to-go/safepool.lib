@@ -1,13 +1,16 @@
 package transport
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/fs"
 	"net/url"
 	"path"
-	"github.com/code-to-go/safepool/core"
 	"strings"
+	"time"
+
+	"github.com/code-to-go/safepool/core"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -28,10 +31,11 @@ type S3Config struct {
 }
 
 type S3 struct {
-	uploader *s3manager.Uploader
-	svc      *s3.S3
-	bucket   string
-	url      string
+	uploader       *s3manager.Uploader
+	svc            *s3.S3
+	bucket         string
+	url            string
+	touchedModtime time.Time
 }
 
 func getAWSConfig(c S3Config) *aws.Config {
@@ -61,10 +65,11 @@ func NewS3(c S3Config) (Exchanger, error) {
 	}
 
 	s := &S3{
-		uploader: s3manager.NewUploader(sess),
-		svc:      s3.New(sess),
-		url:      url,
-		bucket:   c.Bucket,
+		uploader:       s3manager.NewUploader(sess),
+		svc:            s3.New(sess),
+		url:            url,
+		bucket:         c.Bucket,
+		touchedModtime: time.Time{},
 	}
 	err = s.createBucketIfNeeded()
 	return s, err
@@ -86,6 +91,20 @@ func (s *S3) createBucketIfNeeded() error {
 	}
 
 	return err
+}
+
+func (s *S3) Touched() bool {
+	touchFile := ".touched"
+	h, err := s.svc.HeadObject(&s3.HeadObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(touchFile),
+	})
+
+	touched := err != nil || h.LastModified.After(s.touchedModtime)
+	if touched {
+		core.IsErr(s.Write(touchFile, &bytes.Buffer{}), "cannot write touch file: %v")
+	}
+	return touched
 }
 
 func (s *S3) Read(name string, rang *Range, dest io.Writer) error {

@@ -1,13 +1,16 @@
 package transport
 
 import (
+	"bytes"
 	"io"
 	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
-	"github.com/code-to-go/safepool/core"
 	"strings"
+	"time"
+
+	"github.com/code-to-go/safepool/core"
 )
 
 type LocalConfig struct {
@@ -15,8 +18,9 @@ type LocalConfig struct {
 }
 
 type Local struct {
-	base string
-	url  string
+	base           string
+	url            string
+	touchedModtime time.Time
 }
 
 func NewLocal(config LocalConfig) (Exchanger, error) {
@@ -24,7 +28,18 @@ func NewLocal(config LocalConfig) (Exchanger, error) {
 	if base == "" {
 		base = "/"
 	}
-	return &Local{base, "file://" + base}, nil
+	return &Local{base, "file://" + base, time.Time{}}, nil
+}
+
+func (l *Local) Touched() bool {
+	touchFile := path.Join(l.base, ".touched")
+	stat, err := l.Stat(touchFile)
+	touched := err != nil || stat.ModTime().After(l.touchedModtime)
+	if touched {
+		l.touchedModtime = stat.ModTime()
+		core.IsErr(l.Write(touchFile, &bytes.Buffer{}), "cannot write touch file: %v")
+	}
+	return touched
 }
 
 func (l *Local) Read(name string, rang *Range, dest io.Writer) error {

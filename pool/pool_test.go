@@ -41,11 +41,11 @@ func TestSafeCreation(t *testing.T) {
 	defer s.Close()
 
 	s1 := "just a simple test"
-	h, err := s.Post("test.txt", bytes.NewBufferString(s1))
+	h, err := s.Post("test.txt", bytes.NewBufferString(s1), nil)
 	assert.NoErrorf(t, err, "Cannot create post: %v", err)
 
 	b2 := bytes.Buffer{}
-	err = s.Get(h.Id, &b2)
+	err = s.Get(h.Id, nil, &b2)
 	assert.NoErrorf(t, err, "Cannot get %d: %v", h.Id, err)
 
 	s2 := b2.String()
@@ -85,11 +85,11 @@ func BenchmarkSafe(b *testing.B) {
 	defer s.Close()
 
 	s1 := "just a simple test"
-	h, err := s.Post("test.txt", bytes.NewBufferString(s1))
+	h, err := s.Post("test.txt", bytes.NewBufferString(s1), nil)
 	assert.NoErrorf(b, err, "Cannot create post: %v", err)
 
 	b2 := bytes.Buffer{}
-	err = s.Get(h.Id, &b2)
+	err = s.Get(h.Id, nil, &b2)
 	assert.NoErrorf(b, err, "Cannot get %d: %v", h.Id, err)
 
 	s2 := b2.String()
@@ -131,7 +131,7 @@ func TestSafeReplica(t *testing.T) {
 
 	s1 := "just a simple test"
 	now = time.Now()
-	_, err = s.Post("test.txt", bytes.NewBufferString(s1))
+	_, err = s.Post("test.txt", bytes.NewBufferString(s1), nil)
 	postTime := time.Since(now)
 	assert.NoErrorf(t, err, "Cannot create post: %v", err)
 

@@ -3,9 +3,7 @@ package api
 import (
 	_ "embed"
 
-	"github.com/code-to-go/safepool/api/chat"
 	"github.com/code-to-go/safepool/core"
-	pool "github.com/code-to-go/safepool/pool"
 	"github.com/code-to-go/safepool/security"
 	"github.com/code-to-go/safepool/sql"
 )
@@ -50,27 +48,4 @@ func SetNick(nick string) error {
 	err = sqlSetConfig("", "SELF", s, 0, nil)
 	core.IsErr(err, "cannot save nick to db: %v")
 	return err
-}
-
-func CreatePool(c pool.Config) (*pool.Pool, error) {
-	err := pool.Define(c)
-	if core.IsErr(err, "cannot define pool %s: %v", c.Name) {
-		return nil, err
-	}
-
-	return pool.Create(Self, c.Name)
-}
-
-func ListPool() []string {
-	return pool.List()
-}
-
-func OpenSafe(name string) (*pool.Pool, error) {
-	return pool.Open(Self, name)
-}
-
-func OpenChat(p *pool.Pool) chat.Chat {
-	return chat.Chat{
-		Pool: p,
-	}
 }

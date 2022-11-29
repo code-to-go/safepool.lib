@@ -64,6 +64,7 @@ type Head struct {
 	Author    security.Identity
 	Signature []byte
 	TimeStamp time.Time `json:"-"`
+	Meta      []byte
 }
 
 const (
@@ -116,7 +117,7 @@ func Create(self security.Identity, name string) (*Pool, error) {
 	}
 
 	err = s.sqlSetIdentity(self, s.masterKeyId)
-	if core.IsErr(err, "çannot link identity to save: %v") {
+	if core.IsErr(err, "cannot link identity to save: %v") {
 		return nil, err
 	}
 
@@ -159,7 +160,7 @@ func (p *Pool) List(afterId uint64, afterTs time.Time) []Head {
 	return hs
 }
 
-func (p *Pool) Post(name string, r io.Reader) (Head, error) {
+func (p *Pool) Post(name string, r io.Reader, meta []byte) (Head, error) {
 	id := snowflake.ID()
 	n := path.Join(p.Name, fmt.Sprintf("%d.body", id))
 	hr, err := p.writeFile(n, r)
@@ -180,6 +181,7 @@ func (p *Pool) Post(name string, r io.Reader) (Head, error) {
 		ModTime:   time.Now(),
 		Author:    p.Self.Public(),
 		Signature: signature,
+		Meta:      meta,
 	}
 	data, err := json.Marshal(h)
 	if core.IsErr(err, "cannot marshal header to json: %v") {
@@ -193,7 +195,7 @@ func (p *Pool) Post(name string, r io.Reader) (Head, error) {
 	return h, nil
 }
 
-func (p *Pool) Get(id uint64, w io.Writer) error {
+func (p *Pool) Get(id uint64, rang *transport.Range, w io.Writer) error {
 	headName := path.Join(p.Name, fmt.Sprintf("%d.head", id))
 	bodyName := path.Join(p.Name, fmt.Sprintf("%d.body", id))
 
@@ -202,7 +204,7 @@ func (p *Pool) Get(id uint64, w io.Writer) error {
 		return err
 	}
 
-	hr, err := p.readFile(bodyName, w)
+	hr, err := p.readFile(bodyName, rang, w)
 	if core.IsErr(err, "cannot read body '%s': %v", bodyName) {
 		return err
 	}
@@ -234,8 +236,12 @@ func (p *Pool) Identities() ([]Identity, error) {
 	return identities, err
 }
 
-func (p *Pool) Poll() {
+func (p *Pool) Sync() {
 	logrus.Infof("poll request on %s", p.Name)
+
+	if !p.e.Touched() {
+		return
+	}
 
 	timeOffset := time.Now()
 	offsets := map[Consumer]time.Time{}

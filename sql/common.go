@@ -3,6 +3,7 @@ package sql
 import (
 	"database/sql"
 	"encoding/base64"
+	"reflect"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -58,6 +59,28 @@ func QueryRow(key string, m Args, dest ...any) error {
 
 func Query(key string, m Args) (*sql.Rows, error) {
 	return getStatement(key).Query(named(m)...)
+}
+
+func QueryEx[T any](key string, m Args, f func(dest ...any) T) ([]T, error) {
+	rows, err := getStatement(key).Query(named(m)...)
+	if err != nil {
+		return nil, err
+	}
+
+	var res []T
+	var dest []any
+	t := reflect.TypeOf(f)
+	for i := 0; i < t.NumIn(); i++ {
+		dest = append(dest, reflect.New(t.In(i)))
+	}
+
+	for rows.Next() {
+		rows.Scan(dest...)
+		if err == nil {
+			res = append(res, f(dest...))
+		}
+	}
+	return res, nil
 }
 
 func EncodeBase64(data []byte) string {
