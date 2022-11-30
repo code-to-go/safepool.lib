@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS heads (
 CREATE INDEX IF NOT EXISTS idx_heads_id ON heads(id);
 
 -- GET_HEADS
-SELECT id, name, modtime, size, hash, ts FROM heads WHERE pool=:pool AND id > :after ORDER BY id
+SELECT id, name, modtime, size, hash, ts FROM heads WHERE pool=:pool AND id > :after AND ts > :afterTime ORDER BY id
 
 -- SET_HEAD
 INSERT INTO heads(pool,id,name,modtime,size,hash,ts) VALUES(:pool,:id,:name,:modtime,:size,:hash,:ts)

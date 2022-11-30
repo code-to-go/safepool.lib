@@ -23,6 +23,9 @@ var ErrNoExchange = errors.New("no Exchange available")
 var ErrInvalidSignature = errors.New("signature is invalid")
 var ErrNotTrusted = errors.New("the author is not a trusted user")
 var ErrNotAuthorized = errors.New("no authorization for this file")
+var ErrAlreadyExist = errors.New("pool already exists")
+var ErrInvalidToken = errors.New("provided token is invalid: missing name or configs")
+var ErrInvalidConfig = errors.New("provided config is invalid: missing name or configs")
 
 // type SafeConfig struct {
 // 	Version float32
@@ -80,6 +83,12 @@ type Config struct {
 	Configs []transport.Config
 }
 
+type Token struct {
+	Config Config
+	Host   security.Identity
+	Sig    []byte
+}
+
 func Define(c Config) error {
 	return sqlSave(c.Name, c.Configs)
 }
@@ -124,7 +133,7 @@ func Create(self security.Identity, name string) (*Pool, error) {
 	if !ForceCreation {
 		_, err = s.e.Stat(path.Join(s.Name, ".access"))
 		if err == nil {
-			return nil, ErrNotAuthorized
+			return nil, ErrAlreadyExist
 		}
 	}
 
@@ -264,4 +273,8 @@ func (p *Pool) Sync() {
 	if time.Since(p.lastReplica) > ReplicaPeriod {
 		p.replica()
 	}
+}
+
+func (p *Pool) GetToken() {
+	return
 }
