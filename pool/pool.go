@@ -83,16 +83,6 @@ type Config struct {
 	Configs []transport.Config
 }
 
-type Token struct {
-	Config Config
-	Host   security.Identity
-	Sig    []byte
-}
-
-func Define(c Config) error {
-	return sqlSave(c.Name, c.Configs)
-}
-
 func List() []string {
 	names, _ := sqlList()
 	return names
@@ -273,8 +263,4 @@ func (p *Pool) Sync() {
 	if time.Since(p.lastReplica) > ReplicaPeriod {
 		p.replica()
 	}
-}
-
-func (p *Pool) GetToken() {
-	return
 }
