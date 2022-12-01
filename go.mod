@@ -1,4 +1,4 @@
-module github.com/code-to-go/safepool
+module github.com/code-to-go/safepool.lib
 
 go 1.19
 
