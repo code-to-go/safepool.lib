@@ -4,7 +4,8 @@ import (
 	"hash"
 	"io"
 	"os"
-	"github.com/code-to-go/safepool/core"
+
+	"github.com/code-to-go/safepool.lib/core"
 
 	"golang.org/x/crypto/blake2b"
 )

@@ -1,6 +1,6 @@
 package pool
 
-import "github.com/code-to-go/safepool/transport"
+import "github.com/code-to-go/safepool.lib/transport"
 
 func Save(name string, configs []transport.Config) error {
 	return sqlSave(name, configs)

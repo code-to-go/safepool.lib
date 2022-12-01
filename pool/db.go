@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/code-to-go/safepool/core"
-	"github.com/code-to-go/safepool/security"
-	"github.com/code-to-go/safepool/sql"
-	"github.com/code-to-go/safepool/transport"
+	"github.com/code-to-go/safepool.lib/core"
+	"github.com/code-to-go/safepool.lib/security"
+	"github.com/code-to-go/safepool.lib/sql"
+	"github.com/code-to-go/safepool.lib/transport"
 )
 
 func sqlGetHeads(pool string, afterId uint64, afterTime time.Time) ([]Head, error) {

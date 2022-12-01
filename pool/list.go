@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/code-to-go/safepool/core"
-	"github.com/code-to-go/safepool/security"
+	"github.com/code-to-go/safepool.lib/core"
+	"github.com/code-to-go/safepool.lib/security"
 )
 
 func (p *Pool) list(afterId uint64, afterTime time.Time) ([]Head, error) {

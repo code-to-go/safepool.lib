@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/code-to-go/safepool/core"
-	pool "github.com/code-to-go/safepool/pool"
-	"github.com/code-to-go/safepool/security"
+	"github.com/code-to-go/safepool.lib/core"
+	pool "github.com/code-to-go/safepool.lib/pool"
+	"github.com/code-to-go/safepool.lib/security"
 	"github.com/godruoyi/go-snowflake"
 	"github.com/sirupsen/logrus"
 )
@@ -22,12 +22,7 @@ type Message struct {
 	Content     string
 	ContentType string
 	Attachments [][]byte
-	Signature   []byte
-}
-
-func getHash(m *Message) []byte {
-	h := security.NewHash()
-	h.Write([]byte(m.Content))
+	Signature   []bytesafepool.lib
 	h.Write([]byte(m.ContentType))
 	h.Write(m.Author.SignatureKey.Public)
 	for _, a := range m.Attachments {

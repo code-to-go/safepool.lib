@@ -5,10 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/code-to-go/safepool/core"
-	pool "github.com/code-to-go/safepool/pool"
-	"github.com/code-to-go/safepool/security"
-	"github.com/code-to-go/safepool/transport"
+	"github.com/code-to-go/safepool.lib/core"
+	pool "github.com/code-to-go/safepool.lib/pool"
+	"github.com/code-to-go/safepool.lib/security"
+	"github.com/code-to-go/safepool.lib/transport"
 	"github.com/wailsapp/mimetype"
 )
 

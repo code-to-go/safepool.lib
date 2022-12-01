@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/code-to-go/safepool/core"
-	"github.com/code-to-go/safepool/sql"
+	"github.com/code-to-go/safepool.lib/core"
+	"github.com/code-to-go/safepool.lib/sql"
 )
 
 func sqlSetMessage(pool string, id uint64, author []byte, m Message, ts time.Time) error {

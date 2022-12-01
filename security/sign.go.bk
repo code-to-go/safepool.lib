@@ -5,8 +5,8 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"io"
-	"github.com/code-to-go/safepool/core"
-	"github.com/code-to-go/safepool/protocol"
+	"github.com/code-to-go/safepool.lib/core"
+	"github.com/code-to-go/safepool.lib/protocol"
 
 	"github.com/golang/protobuf/proto"
 )

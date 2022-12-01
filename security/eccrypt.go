@@ -1,7 +1,7 @@
 package security
 
 import (
-	"github.com/code-to-go/safepool/core"
+	"github.com/code-to-go/safepool.lib/core"
 
 	eciesgo "github.com/ecies/go/v2"
 )

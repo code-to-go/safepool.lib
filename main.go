@@ -4,7 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 
-	"github.com/code-to-go/safepool/api"
+	"github.com/code-to-go/safepool.lib/api"
 )
 
 func main() {

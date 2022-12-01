@@ -3,9 +3,9 @@ package pool
 import (
 	"io"
 
-	"github.com/code-to-go/safepool/core"
-	"github.com/code-to-go/safepool/security"
-	"github.com/code-to-go/safepool/transport"
+	"github.com/code-to-go/safepool.lib/core"
+	"github.com/code-to-go/safepool.lib/security"
+	"github.com/code-to-go/safepool.lib/transport"
 )
 
 func (p *Pool) writeFile(name string, r io.Reader) (*security.HashStream, error) {

@@ -1,8 +1,9 @@
 package transport
 
 import (
-	"github.com/code-to-go/safepool/core"
 	"time"
+
+	"github.com/code-to-go/safepool.lib/core"
 
 	"github.com/godruoyi/go-snowflake"
 )

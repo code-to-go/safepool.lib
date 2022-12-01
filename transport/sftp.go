@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/code-to-go/safepool/core"
+	"github.com/code-to-go/safepool.lib/core"
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"

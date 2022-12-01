@@ -3,8 +3,8 @@ package pool
 import (
 	"path"
 
-	"github.com/code-to-go/safepool/core"
-	"github.com/code-to-go/safepool/transport"
+	"github.com/code-to-go/safepool.lib/core"
+	"github.com/code-to-go/safepool.lib/transport"
 )
 
 func (p *Pool) replica() {

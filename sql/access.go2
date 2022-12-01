@@ -2,8 +2,8 @@ package sql
 
 import (
 	"encoding/json"
-	"github.com/code-to-go/safepool/core"
-	"github.com/code-to-go/safepool/model"
+	"github.com/code-to-go/safepool.lib/core"
+	"github.com/code-to-go/safepool.lib/model"
 )
 
 func GetDomains() ([]string, error) {

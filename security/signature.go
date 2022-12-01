@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"encoding/base64"
-	"github.com/code-to-go/safepool/core"
+
+	"github.com/code-to-go/safepool.lib/core"
 )
 
 type PublicKey ed25519.PublicKey

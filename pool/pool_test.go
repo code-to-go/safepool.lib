@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/code-to-go/safepool/security"
-	"github.com/code-to-go/safepool/sql"
-	"github.com/code-to-go/safepool/transport"
+	"github.com/code-to-go/safepool.lib/security"
+	"github.com/code-to-go/safepool.lib/sql"
+	"github.com/code-to-go/safepool.lib/transport"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"

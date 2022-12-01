@@ -16,8 +16,8 @@ import "C"
 import (
 	"encoding/json"
 
-	pool "github.com/code-to-go/safepool/pool"
-	"github.com/code-to-go/safepool/transport"
+	pool "github.com/code-to-go/safepool.lib/pool"
+	"github.com/code-to-go/safepool.lib/transport"
 )
 
 //export start

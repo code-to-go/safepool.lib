@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/code-to-go/safepool/sql"
+	"github.com/code-to-go/safepool.lib/sql"
 
 	"github.com/sirupsen/logrus"
 )

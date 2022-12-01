@@ -3,9 +3,9 @@ package api
 import (
 	_ "embed"
 
-	"github.com/code-to-go/safepool/core"
-	"github.com/code-to-go/safepool/security"
-	"github.com/code-to-go/safepool/sql"
+	"github.com/code-to-go/safepool.lib/core"
+	"github.com/code-to-go/safepool.lib/security"
+	"github.com/code-to-go/safepool.lib/sql"
 )
 
 var Self security.Identity
