@@ -29,6 +29,7 @@ type Key struct {
 
 type Identity struct {
 	Nick          string `json:"n"`
+	Email         string `json:"m"`
 	SignatureKey  Key    `json:"s"`
 	EncryptionKey Key    `json:"e"`
 }
@@ -59,7 +60,8 @@ func NewIdentity(nick string) (Identity, error) {
 
 func (i Identity) Public() Identity {
 	return Identity{
-		Nick: i.Nick,
+		Nick:  i.Nick,
+		Email: i.Email,
 		EncryptionKey: Key{
 			Public: i.EncryptionKey.Public,
 		},
@@ -69,29 +71,29 @@ func (i Identity) Public() Identity {
 	}
 }
 
-func KeyFromBase64(b64 string) (Key, error) {
-	var k Key
-	data, err := base64.StdEncoding.DecodeString(b64)
-	if core.IsErr(err, "cannot decode Key string in base64: %v") {
-		return k, err
-	}
+// func KeyFromBase64(b64 string) (Key, error) {
+// 	var k Key
+// 	data, err := base64.StdEncoding.DecodeString(b64)
+// 	if core.IsErr(err, "cannot decode Key string in base64: %v") {
+// 		return k, err
+// 	}
 
-	err = json.Unmarshal(data, &k)
-	if core.IsErr(err, "cannot decode Key string from json: %v") {
-		return k, err
-	}
-	return k, nil
+// 	err = json.Unmarshal(data, &k)
+// 	if core.IsErr(err, "cannot decode Key string from json: %v") {
+// 		return k, err
+// 	}
+// 	return k, nil
 
-}
+// }
 
-func (k Key) Base64() (string, error) {
-	data, err := json.Marshal(k)
-	if core.IsErr(err, "cannot marshal key: %v") {
-		return "", err
-	}
+// func (k Key) Base64() (string, error) {
+// 	data, err := json.Marshal(k)
+// 	if core.IsErr(err, "cannot marshal key: %v") {
+// 		return "", err
+// 	}
 
-	return base64.StdEncoding.EncodeToString(data), nil
-}
+// 	return base64.StdEncoding.EncodeToString(data), nil
+// }
 
 func IdentityFromBase64(b64 string) (Identity, error) {
 	var i Identity
@@ -116,6 +118,10 @@ func (i Identity) Base64() (string, error) {
 	return base64.StdEncoding.EncodeToString(data), nil
 }
 
+func (i Identity) Id() string {
+	return base64.StdEncoding.EncodeToString(i.SignatureKey.Public)
+}
+
 func SameIdentity(a, b Identity) bool {
 	return bytes.Equal(a.SignatureKey.Public, b.SignatureKey.Public) &&
 		bytes.Equal(a.EncryptionKey.Public, b.EncryptionKey.Public)
@@ -126,7 +132,7 @@ func SetIdentity(i Identity) error {
 	if _, found := knownIdentities.Get(k); found {
 		return nil
 	}
-	return sqlInsertIdentity(i)
+	return sqlSetIdentity(i)
 }
 
 func Trust(i Identity, trusted bool) error {

@@ -22,7 +22,12 @@ type Message struct {
 	Content     string
 	ContentType string
 	Attachments [][]byte
-	Signature   []bytesafepool.lib
+	Signature   []byte
+}
+
+func getHash(m *Message) []byte {
+	h := security.NewHash()
+	h.Write([]byte(m.Content))
 	h.Write([]byte(m.ContentType))
 	h.Write(m.Author.SignatureKey.Public)
 	for _, a := range m.Attachments {

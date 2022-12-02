@@ -1,30 +1,27 @@
 -- INIT
 CREATE TABLE IF NOT EXISTS identity (
-    signatureKey VARCHAR(128),
-    encryptionKey VARCHAR(128),
-    nick VARCHAR(128),
+    id VARCHAR(256),
+    i64 VARCHAR(1024),
     trusted INTEGER,
-    CONSTRAINT pk_identity_sign_enc PRIMARY KEY(signatureKey, encryptionKey)
+    PRIMARY KEY(id)
 );
 
 -- INIT
 CREATE INDEX IF NOT EXISTS idx_identity_trust ON identity(trusted);
 
 -- GET_IDENTITY
-SELECT signatureKey,encryptionKey,nick FROM identity
-
--- GET_NICK
-SELECT nick FROM identity WHERE signatureKey=:signatureKey AND encryptionKey=:encryptionKey
+SELECT i64 FROM identity
 
 -- GET_TRUSTED
-SELECT signatureKey,encryptionKey,nick FROM identity WHERE trusted
+SELECT i64 FROM identity WHERE trusted
 
 -- SET_TRUSTED
-UPDATE identity SET trusted=:trusted WHERE signatureKey=:signatureKey AND encryptionKey=:encryptionKey
+UPDATE identity SET trusted=:trusted WHERE id=:id
 
--- INSERT_IDENTITY
-INSERT INTO identity(signatureKey,encryptionKey,nick) VALUES(:signatureKey,:encryptionKey,:nick)
-    ON CONFLICT(signatureKey,encryptionKey) DO NOTHING
+-- SET_IDENTITY
+INSERT INTO identity(id,i64) VALUES(:id,:i64)
+    ON CONFLICT(id) DO UPDATE SET i64=:i64
+	WHERE id=:id
 
 -- INIT
 CREATE TABLE IF NOT EXISTS config (
@@ -103,27 +100,26 @@ INSERT INTO pool(name,configs) VALUES(:name,:configs)
 	    WHERE name=:name
 
 -- INIT
-CREATE TABLE IF NOT EXISTS pool_people (
+CREATE TABLE IF NOT EXISTS pool_identity (
     pool VARCHAR(128),
-    signatureKey VARCHAR(128),
-    encryptionKey VARCHAR(128),
+    id VARCHAR(256),
     since INTEGER,
     ts INTEGER,
-    CONSTRAINT pk_safe_sig_enc PRIMARY KEY(pool,signatureKey,encryptionKey)
+    CONSTRAINT pk_safe_sig_enc PRIMARY KEY(pool,id)
 );
 
 -- GET_TRUSTED_ON_POOL
-SELECT i.signatureKey, i.encryptionKey,nick,ts FROM identity i INNER JOIN pool_people s WHERE s.pool=:pool AND i.signatureKey = s.signatureKey AND i.trusted
+SELECT i.i64, ts FROM identity i INNER JOIN pool_identity s WHERE s.pool=:pool AND i.id = s.id AND i.trusted
 
 -- GET_IDENTITY_ON_POOL
-SELECT i.signatureKey, i.encryptionKey,nick,since,ts FROM identity i INNER JOIN pool_people s WHERE s.pool=:pool AND i.signatureKey = s.signatureKey
+SELECT i.i64,since,ts FROM identity i INNER JOIN pool_identity s WHERE s.pool=:pool AND i.id = s.id 
 
 -- SET_IDENTITY_ON_POOL
-INSERT INTO pool_people(pool,signatureKey,encryptionKey,since,ts) VALUES(:pool,:signatureKey,:encryptionKey,:since,:ts)
-    ON CONFLICT(pool,signatureKey,encryptionKey) DO NOTHING
+INSERT INTO pool_identity(pool,id,since,ts) VALUES(:pool,:id,:since,:ts)
+    ON CONFLICT(pool,id) DO NOTHING
 
 -- DEL_IDENTITY_ON_POOL
-DELETE FROM pool_people WHERE signatureKey=:signatureKey AND encryptionKey=:encryptionKey AND pool=:pool
+DELETE FROM pool_identity WHERE id=:id AND pool=:pool
 
 -- INIT
 CREATE TABLE IF NOT EXISTS chat (

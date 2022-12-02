@@ -5,14 +5,15 @@ import (
 	"github.com/code-to-go/safepool.lib/sql"
 )
 
-func sqlInsertIdentity(i Identity) error {
-	sk, _ := i.SignatureKey.Base64()
-	ek, _ := i.EncryptionKey.Base64()
+func sqlSetIdentity(i Identity) error {
+	i64, err := i.Base64()
+	if core.IsErr(err, "cannot serialize identity: %v") {
+		return err
+	}
 
-	_, err := sql.Exec("INSERT_IDENTITY", sql.Args{
-		"signatureKey":  sk,
-		"encryptionKey": ek,
-		"nick":          i.Nick,
+	_, err = sql.Exec("SET_IDENTITY", sql.Args{
+		"id":  i.Id(),
+		"i64": i64,
 	})
 	return err
 }
@@ -31,32 +32,26 @@ func sqlGetIdentities(onlyTrusted bool) ([]Identity, error) {
 	}
 	defer rows.Close()
 
-	var is []Identity
+	var identities []Identity
 	for rows.Next() {
-		var encryptionKey, signatureKey, nick string
-		err = rows.Scan(&signatureKey, &encryptionKey, &nick)
+		var i64 string
+		err = rows.Scan(&i64)
 		if !core.IsErr(err, "cannot read pool heads from db: %v") {
 			continue
 		}
 
-		ek, _ := KeyFromBase64(encryptionKey)
-		sk, _ := KeyFromBase64(signatureKey)
-		is = append(is, Identity{
-			Nick:          nick,
-			SignatureKey:  sk,
-			EncryptionKey: ek,
-		})
+		i, err := IdentityFromBase64(i64)
+		if !core.IsErr(err, "invalid identity record '%s': %v", i64) {
+			identities = append(identities, i)
+		}
 	}
-	return is, nil
+	return identities, nil
 }
 
 func sqlSetTrust(i Identity, trusted bool) error {
-	sk, _ := i.SignatureKey.Base64()
-	ek, _ := i.EncryptionKey.Base64()
 	_, err := sql.Exec("SET_TRUSTED", sql.Args{
-		"signatureKey":  sk,
-		"encryptionKey": ek,
-		"trusted":       trusted,
+		"id":      i.Id(),
+		"trusted": trusted,
 	})
 	return err
 }

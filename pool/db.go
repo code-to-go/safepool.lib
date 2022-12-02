@@ -103,51 +103,42 @@ func (p *Pool) sqlGetIdentities(onlyTrusted bool) (identities []Identity, err er
 	defer rows.Close()
 
 	for rows.Next() {
-		var encryptionKey, signatureKey, nick string
+		var i64 string
 		var since uint64
 		var ts int64
-		err = rows.Scan(&signatureKey, &encryptionKey, &nick, &since, &ts)
+		err = rows.Scan(&i64, &since, &ts)
 		if core.IsErr(err, "cannot read identity from db: %v") {
 			continue
 		}
 
-		ek, _ := security.KeyFromBase64(encryptionKey)
-		sk, _ := security.KeyFromBase64(signatureKey)
+		i, err := security.IdentityFromBase64(i64)
+		if core.IsErr(err, "invalid identity '%s': %v", i64) {
+			continue
+		}
+
 		identities = append(identities, Identity{
-			Identity: security.Identity{
-				Nick:          nick,
-				SignatureKey:  sk,
-				EncryptionKey: ek,
-			},
-			Since:   since,
-			AddedOn: sql.DecodeTime(ts),
+			Identity: i,
+			Since:    since,
+			AddedOn:  sql.DecodeTime(ts),
 		})
 	}
 	return identities, nil
 }
 
 func (p *Pool) sqlSetIdentity(i security.Identity, since uint64) error {
-	sk, _ := i.SignatureKey.Base64()
-	ek, _ := i.EncryptionKey.Base64()
-
 	_, err := sql.Exec("SET_IDENTITY_ON_POOL", sql.Args{
-		"signatureKey":  sk,
-		"encryptionKey": ek,
-		"pool":          p.Name,
-		"since":         since,
-		"ts":            sql.EncodeTime(time.Now()),
+		"id":    i.Id(),
+		"pool":  p.Name,
+		"since": since,
+		"ts":    sql.EncodeTime(time.Now()),
 	})
 	return err
 }
 
 func (p *Pool) sqlDeleteIdentity(i Identity) error {
-	sk, _ := i.SignatureKey.Base64()
-	ek, _ := i.EncryptionKey.Base64()
-
 	_, err := sql.Exec("DEL_IDENTITY_ON_POOL", sql.Args{
-		"signatureKey":  sk,
-		"encryptionKey": ek,
-		"pool":          p.Name,
+		"id":   i.Id(),
+		"pool": p.Name,
 	})
 	return err
 }

@@ -23,18 +23,18 @@ const (
 
 // Document includes information about a file stored on the library. Most information refers on the synchronized state with the exchange
 type Document struct {
-	Id          uint64
-	Name        string
-	Size        uint64
-	ModTime     time.Time
-	Author      security.Identity
-	ContentType string
-	Hash        []byte
+	Id          uint64            `json:"id"`
+	Name        string            `json:"name"`
+	Size        uint64            `json:"size"`
+	ModTime     time.Time         `json:"modTime"`
+	Author      security.Identity `json:"author"`
+	ContentType string            `json:"contentType"`
+	Hash        []byte            `json:"hash"`
 
 	// LocalPath is the location on the local storage where the document
-	LocalPath string
+	LocalPath string `json:"localPath"`
 	// HasChanges is true when the location on the local storage is different than the last available on the exchange
-	HasChanged bool
+	HasChanged bool `json:"hasChanged"`
 }
 
 type Library struct {
