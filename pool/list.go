@@ -61,7 +61,7 @@ func (p *Pool) readHead(name string) (Head, error) {
 		return Head{}, err
 	}
 
-	if !security.Verify(h.Author, h.Hash, h.Signature) {
+	if !security.Verify(h.Author.Id(), h.Hash, h.Signature) {
 		return Head{}, ErrNoExchange
 	}
 

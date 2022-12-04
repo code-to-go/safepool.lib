@@ -3,12 +3,15 @@ package sql
 import (
 	"database/sql"
 	"encoding/base64"
+	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
 )
 
+var queriesCache = map[string]string{}
 var stmtCache = map[string]*sql.Stmt{}
 var ErrNoRows = sql.ErrNoRows
 
@@ -24,6 +27,7 @@ func prepareStatement(key, s string, line int) {
 		panic(err)
 	}
 	stmtCache[key] = stmt
+	queriesCache[key] = s
 }
 
 func getStatement(key string) *sql.Stmt {
@@ -45,20 +49,36 @@ func named(m Args) []any {
 	return args
 }
 
+func trace(key string, m Args, err error) {
+	if logrus.IsLevelEnabled(logrus.InfoLevel) {
+		q := queriesCache[key]
+		for k, v := range m {
+			q = strings.ReplaceAll(q, ":"+k, fmt.Sprintf("%v", v))
+		}
+		logrus.Infof("SQL: %s: %v", q, err)
+	}
+}
+
 func Exec(key string, m Args) (sql.Result, error) {
-	return getStatement(key).Exec(named(m)...)
+	res, err := getStatement(key).Exec(named(m)...)
+	trace(key, m, err)
+	return res, err
 }
 
 func QueryRow(key string, m Args, dest ...any) error {
 	row := getStatement(key).QueryRow(named(m)...)
-	if row.Err() == nil {
+	err := row.Err()
+	trace(key, m, err)
+	if err == nil {
 		return row.Scan(dest...)
 	}
-	return row.Err()
+	return err
 }
 
 func Query(key string, m Args) (*sql.Rows, error) {
-	return getStatement(key).Query(named(m)...)
+	rows, err := getStatement(key).Query(named(m)...)
+	trace(key, m, err)
+	return rows, err
 }
 
 func QueryEx[T any](key string, m Args, f func(dest ...any) T) ([]T, error) {

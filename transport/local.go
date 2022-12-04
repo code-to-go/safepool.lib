@@ -2,6 +2,7 @@ package transport
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -18,9 +19,9 @@ type LocalConfig struct {
 }
 
 type Local struct {
-	base           string
-	url            string
-	touchedModtime time.Time
+	base  string
+	url   string
+	touch map[string]time.Time
 }
 
 func NewLocal(config LocalConfig) (Exchanger, error) {
@@ -28,16 +29,17 @@ func NewLocal(config LocalConfig) (Exchanger, error) {
 	if base == "" {
 		base = "/"
 	}
-	return &Local{base, "file://" + base, time.Time{}}, nil
+	return &Local{base, "file://" + base, map[string]time.Time{}}, nil
 }
 
-func (l *Local) Touched() bool {
-	touchFile := path.Join(l.base, ".touched")
+func (l *Local) Touched(name string) bool {
+	touchFile := path.Join(l.base, fmt.Sprintf("%s.touch", name))
 	stat, err := l.Stat(touchFile)
-	touched := err != nil || stat.ModTime().After(l.touchedModtime)
+	touched := err != nil || stat.ModTime().After(l.touch[name])
 	if touched {
-		l.touchedModtime = stat.ModTime()
-		core.IsErr(l.Write(touchFile, &bytes.Buffer{}), "cannot write touch file: %v")
+		if !core.IsErr(l.Write(touchFile, &bytes.Buffer{}), "cannot write touch file: %v") {
+			l.touch[name] = stat.ModTime()
+		}
 	}
 	return touched
 }

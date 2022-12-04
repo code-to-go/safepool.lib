@@ -8,15 +8,20 @@ import (
 	"github.com/code-to-go/safepool.lib/sql"
 )
 
-func sqlSetMessage(pool string, id uint64, author []byte, m Message, ts time.Time) error {
-	_, err := sql.Exec("SET_CHAT_MESSAGE", sql.Args{"pool": pool, "id": id, "author": author, "ts": sql.EncodeTime(ts)})
+func sqlSetMessage(pool string, id uint64, author string, m Message, ts time.Time) error {
+	message, err := json.Marshal(m)
+	if core.IsErr(err, "cannot marshal chat message: %v") {
+		return err
+	}
+
+	_, err = sql.Exec("SET_CHAT_MESSAGE", sql.Args{"pool": pool, "id": id, "author": author, "message": message, "ts": sql.EncodeTime(ts)})
 	core.IsErr(err, "cannot set message %d on db: %v", id)
 	return err
 }
 
-func sqlGetMessages(pool string, beforeId uint64, limit int) []Message {
+func sqlGetMessages(pool string, afterId uint64, beforeId uint64, limit int) []Message {
 	var messages []Message
-	rows, err := sql.Query("GET_CHAT_MESSAGES", sql.Args{"pool": pool, "beforeId": beforeId, "limit": limit})
+	rows, err := sql.Query("GET_CHAT_MESSAGES", sql.Args{"pool": pool, "afterId": afterId, "beforeId": beforeId, "limit": limit})
 	if err == nil {
 		for rows.Next() {
 			var data []byte

@@ -35,7 +35,7 @@ type Range struct {
 type Exchanger interface {
 
 	//Touched returns true when some data has been written to the exchanger since the last time Touched was called
-	Touched() bool
+	Touched(name string) bool
 
 	// Read reads data from a file into a writer
 	Read(name string, rang *Range, dest io.Writer) error

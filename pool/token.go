@@ -80,7 +80,7 @@ func DecodeToken(guest *security.Identity, token string) (Token, error) {
 		return t, ErrInvalidToken
 	}
 
-	if !security.Verify(t.Host, tk, sig) {
+	if !security.Verify(t.Host.Id(), tk, sig) {
 		core.IsErr(ErrInvalidSignature, "token has invalid signature: %v")
 		return t, ErrInvalidSignature
 	}

@@ -33,9 +33,13 @@ func Sign(identity Identity, data []byte) ([]byte, error) {
 	return ed25519.Sign(ed25519.PrivateKey(private), data), nil
 }
 
-func Verify(identity Identity, data []byte, sig []byte) bool {
+func Verify(id string, data []byte, sig []byte) bool {
+	public, err := base64.StdEncoding.DecodeString(id)
+	if core.IsErr(err, "invalid id '%s': %v", id) {
+		return false
+	}
+
 	for off := 0; off < len(sig); off += SignatureSize {
-		public := identity.SignatureKey.Public
 		if func() bool {
 			defer func() { recover() }()
 			return ed25519.Verify(ed25519.PublicKey(public), data, sig[off:off+SignatureSize])
@@ -93,7 +97,7 @@ func VerifySignedHash(s SignedHash, trusts []Identity, hash []byte) bool {
 	for _, e := range s.Evidences {
 		for _, t := range trusts {
 			if bytes.Equal(e.Key, t.SignatureKey.Public) {
-				if Verify(t, hash, e.Signature) {
+				if Verify(t.Id(), hash, e.Signature) {
 					return true
 				}
 			}

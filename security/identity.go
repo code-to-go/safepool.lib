@@ -23,8 +23,8 @@ const (
 var knownIdentities = cache.New(time.Hour, 10*time.Hour)
 
 type Key struct {
-	Public  []byte `json:"u"`
-	Private []byte `json:"r,omitempty"`
+	Public  []byte `json:"pu"`
+	Private []byte `json:"pr,omitempty"`
 }
 
 type Identity struct {
@@ -70,30 +70,6 @@ func (i Identity) Public() Identity {
 		},
 	}
 }
-
-// func KeyFromBase64(b64 string) (Key, error) {
-// 	var k Key
-// 	data, err := base64.StdEncoding.DecodeString(b64)
-// 	if core.IsErr(err, "cannot decode Key string in base64: %v") {
-// 		return k, err
-// 	}
-
-// 	err = json.Unmarshal(data, &k)
-// 	if core.IsErr(err, "cannot decode Key string from json: %v") {
-// 		return k, err
-// 	}
-// 	return k, nil
-
-// }
-
-// func (k Key) Base64() (string, error) {
-// 	data, err := json.Marshal(k)
-// 	if core.IsErr(err, "cannot marshal key: %v") {
-// 		return "", err
-// 	}
-
-// 	return base64.StdEncoding.EncodeToString(data), nil
-// }
 
 func IdentityFromBase64(b64 string) (Identity, error) {
 	var i Identity

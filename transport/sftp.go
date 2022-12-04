@@ -27,10 +27,10 @@ type SFTPConfig struct {
 }
 
 type SFTP struct {
-	c              *sftp.Client
-	base           string
-	url            string
-	touchedModtime time.Time
+	c     *sftp.Client
+	base  string
+	url   string
+	touch map[string]time.Time
 }
 
 func NewSFTP(config SFTPConfig) (Exchanger, error) {
@@ -83,16 +83,17 @@ func NewSFTP(config SFTPConfig) (Exchanger, error) {
 	if base == "" {
 		base = "/"
 	}
-	return &SFTP{c, base, url, time.Time{}}, nil
+	return &SFTP{c, base, url, map[string]time.Time{}}, nil
 }
 
-func (s *SFTP) Touched() bool {
-	touchFile := path.Join(s.base, ".touched")
+func (s *SFTP) Touched(name string) bool {
+	touchFile := path.Join(s.base, fmt.Sprintf("%s.touch", name))
 	stat, err := s.Stat(touchFile)
-	touched := err != nil || stat.ModTime().After(s.touchedModtime)
+	touched := err != nil || stat.ModTime().After(s.touch[name])
 	if touched {
-		s.touchedModtime = stat.ModTime()
-		core.IsErr(s.Write(touchFile, &bytes.Buffer{}), "cannot write touch file: %v")
+		if !core.IsErr(s.Write(touchFile, &bytes.Buffer{}), "cannot write touch file: %v") {
+			s.touch[name] = stat.ModTime()
+		}
 	}
 	return touched
 }

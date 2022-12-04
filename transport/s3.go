@@ -31,11 +31,11 @@ type S3Config struct {
 }
 
 type S3 struct {
-	uploader       *s3manager.Uploader
-	svc            *s3.S3
-	bucket         string
-	url            string
-	touchedModtime time.Time
+	uploader *s3manager.Uploader
+	svc      *s3.S3
+	bucket   string
+	url      string
+	touch    map[string]time.Time
 }
 
 func getAWSConfig(c S3Config) *aws.Config {
@@ -65,11 +65,11 @@ func NewS3(c S3Config) (Exchanger, error) {
 	}
 
 	s := &S3{
-		uploader:       s3manager.NewUploader(sess),
-		svc:            s3.New(sess),
-		url:            url,
-		bucket:         c.Bucket,
-		touchedModtime: time.Time{},
+		uploader: s3manager.NewUploader(sess),
+		svc:      s3.New(sess),
+		url:      url,
+		bucket:   c.Bucket,
+		touch:    map[string]time.Time{},
 	}
 	err = s.createBucketIfNeeded()
 	return s, err
@@ -93,16 +93,18 @@ func (s *S3) createBucketIfNeeded() error {
 	return err
 }
 
-func (s *S3) Touched() bool {
-	touchFile := ".touched"
+func (s *S3) Touched(name string) bool {
+	touchFile := fmt.Sprintf("%s.touch", name)
 	h, err := s.svc.HeadObject(&s3.HeadObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(touchFile),
 	})
 
-	touched := err != nil || h.LastModified.After(s.touchedModtime)
+	touched := err != nil || h.LastModified.After(s.touch[name])
 	if touched {
-		core.IsErr(s.Write(touchFile, &bytes.Buffer{}), "cannot write touch file: %v")
+		if !core.IsErr(s.Write(touchFile, &bytes.Buffer{}), "cannot write touch file: %v") {
+			s.touch[name] = *h.LastModified
+		}
 	}
 	return touched
 }

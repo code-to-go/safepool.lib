@@ -33,6 +33,8 @@ type Document struct {
 
 	// LocalPath is the location on the local storage where the document
 	LocalPath string `json:"localPath"`
+	// TmpPath is the location for temporary readonly documents
+	TmpPath string `json:"tmpPath"`
 	// HasChanges is true when the location on the local storage is different than the last available on the exchange
 	HasChanged bool `json:"hasChanged"`
 }

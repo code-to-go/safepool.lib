@@ -17,19 +17,19 @@ import (
 )
 
 type Message struct {
-	Id          uint64
-	Author      security.Identity
-	Content     string
-	ContentType string
-	Attachments [][]byte
-	Signature   []byte
+	Id          uint64   `json:"id,string"`
+	Author      string   `json:"author"`
+	Content     string   `json:"content"`
+	ContentType string   `json:"contentType"`
+	Attachments [][]byte `json:"attachments"`
+	Signature   []byte   `json:"signature"`
 }
 
 func getHash(m *Message) []byte {
 	h := security.NewHash()
 	h.Write([]byte(m.Content))
 	h.Write([]byte(m.ContentType))
-	h.Write(m.Author.SignatureKey.Public)
+	h.Write([]byte(m.Author))
 	for _, a := range m.Attachments {
 		h.Write(a)
 	}
@@ -79,32 +79,42 @@ func (c *Chat) Accept(s *pool.Pool, head pool.Head) bool {
 		return true
 	}
 
-	err = sqlSetMessage(s.Name, uint64(id), m.Author.SignatureKey.Public, m, head.TimeStamp)
+	err = sqlSetMessage(s.Name, uint64(id), m.Author, m, head.TimeStamp)
 	core.IsErr(err, "cannot write message %s to db:%v", head.Name)
 	return true
 }
 
-func (c *Chat) Post(m Message) error {
+func (c *Chat) Post(m Message) (uint64, error) {
+	m.Id = snowflake.ID()
+	m.Author = c.Pool.Self.Id()
 	h := getHash(&m)
 	signature, err := security.Sign(c.Pool.Self, h)
 	if core.IsErr(err, "cannot sign chat message: %v") {
-		return err
+		return 0, err
 	}
 	m.Signature = signature
 
 	data, err := json.Marshal(m)
 	if core.IsErr(err, "cannot sign chat message: %v") {
-		return err
+		return 0, err
 	}
 
-	name := fmt.Sprintf("/chat/%d.chat", snowflake.ID())
-	_, err = c.Pool.Post(name, bytes.NewBuffer(data), nil)
-	core.IsErr(err, "cannot write chat message: %v")
+	go func() {
+		name := fmt.Sprintf("/chat/%d.chat", m.Id)
+		_, err = c.Pool.Post(name, bytes.NewBuffer(data), nil)
+		core.IsErr(err, "cannot write chat message: %v")
+	}()
 
-	return nil
+	err = sqlSetMessage(c.Pool.Name, m.Id, c.Pool.Self.Id(), m, time.Now())
+	if core.IsErr(err, "cannot save message to db: %v") {
+		return 0, err
+	}
+
+	core.Info("added chat message with id %d", m.Id)
+	return m.Id, nil
 }
 
-func (c *Chat) Pull(beforeId uint64, limit int) ([]Message, error) {
-	messages := sqlGetMessages(c.Pool.Name, beforeId, limit)
+func (c *Chat) Pull(afterId, beforeId uint64, limit int) ([]Message, error) {
+	messages := sqlGetMessages(c.Pool.Name, afterId, beforeId, limit)
 	return messages, nil
 }

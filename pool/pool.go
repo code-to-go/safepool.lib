@@ -238,7 +238,7 @@ func (p *Pool) Identities() ([]Identity, error) {
 func (p *Pool) Sync() {
 	logrus.Infof("poll request on %s", p.Name)
 
-	if !p.e.Touched() {
+	if !p.e.Touched(p.Name + "/") {
 		return
 	}
 

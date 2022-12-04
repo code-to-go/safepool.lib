@@ -137,7 +137,7 @@ INSERT INTO chat(pool,id,author,message, ts) VALUES(:pool,:id,:author,:message, 
 	    WHERE pool=:pool AND id=:id AND author=:author
 
 -- GET_CHAT_MESSAGES
-SELECT message FROM chat WHERE pool=:pool AND id < :beforeId ORDER BY id DESC LIMIT :limit
+SELECT message FROM chat WHERE pool=:pool AND id > :afterId AND id < :beforeId ORDER BY id DESC LIMIT :limit
 
 -- GET_CHAT_OFFSET 
 SELECT max(ts) FROM chat WHERE pool=:pool
