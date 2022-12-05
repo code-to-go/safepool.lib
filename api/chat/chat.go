@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -17,12 +18,13 @@ import (
 )
 
 type Message struct {
-	Id          uint64   `json:"id,string"`
-	Author      string   `json:"author"`
-	Content     string   `json:"content"`
-	ContentType string   `json:"contentType"`
-	Attachments [][]byte `json:"attachments"`
-	Signature   []byte   `json:"signature"`
+	Id          uint64    `json:"id,string"`
+	Author      string    `json:"author"`
+	Time        time.Time `json:"time"`
+	Content     string    `json:"content"`
+	ContentType string    `json:"contentType"`
+	Attachments [][]byte  `json:"attachments"`
+	Signature   []byte    `json:"signature"`
 }
 
 func getHash(m *Message) []byte {
@@ -84,9 +86,15 @@ func (c *Chat) Accept(s *pool.Pool, head pool.Head) bool {
 	return true
 }
 
-func (c *Chat) Post(m Message) (uint64, error) {
-	m.Id = snowflake.ID()
-	m.Author = c.Pool.Self.Id()
+func (c *Chat) SendMessage(content string, contentType string, attachments [][]byte) (uint64, error) {
+	m := Message{
+		Id:          snowflake.ID(),
+		Author:      c.Pool.Self.Id(),
+		Time:        time.Now(),
+		Content:     content,
+		ContentType: contentType,
+		Attachments: attachments,
+	}
 	h := getHash(&m)
 	signature, err := security.Sign(c.Pool.Self, h)
 	if core.IsErr(err, "cannot sign chat message: %v") {
@@ -114,7 +122,14 @@ func (c *Chat) Post(m Message) (uint64, error) {
 	return m.Id, nil
 }
 
-func (c *Chat) Pull(afterId, beforeId uint64, limit int) ([]Message, error) {
-	messages := sqlGetMessages(c.Pool.Name, afterId, beforeId, limit)
+func (c *Chat) GetMessages(afterId, beforeId uint64, limit int) ([]Message, error) {
+	messages, err := sqlGetMessages(c.Pool.Name, afterId, beforeId, limit)
+	if core.IsErr(err, "cannot read messages from db: %v") {
+		return nil, err
+	}
+
+	sort.Slice(messages, func(i, j int) bool {
+		return messages[i].Id < messages[j].Id
+	})
 	return messages, nil
 }

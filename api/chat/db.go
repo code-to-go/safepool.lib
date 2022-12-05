@@ -19,7 +19,7 @@ func sqlSetMessage(pool string, id uint64, author string, m Message, ts time.Tim
 	return err
 }
 
-func sqlGetMessages(pool string, afterId uint64, beforeId uint64, limit int) []Message {
+func sqlGetMessages(pool string, afterId uint64, beforeId uint64, limit int) ([]Message, error) {
 	var messages []Message
 	rows, err := sql.Query("GET_CHAT_MESSAGES", sql.Args{"pool": pool, "afterId": afterId, "beforeId": beforeId, "limit": limit})
 	if err == nil {
@@ -36,7 +36,7 @@ func sqlGetMessages(pool string, afterId uint64, beforeId uint64, limit int) []M
 		}
 	}
 
-	return messages
+	return messages, err
 }
 
 func sqlGetOffset(pool string) time.Time {
